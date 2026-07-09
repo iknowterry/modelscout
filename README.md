@@ -50,6 +50,31 @@ inventory  →  classify  →  recommend
  have)        task needs)   clears the bar — and why)
 ```
 
+## What you'll actually see
+
+**You don't have to ask.** With proactive mode on, ModelScout watches every
+task and only speaks when something's off:
+
+> **You:** rename `organizerId` to `ownerId` across the codebase and fix imports
+>
+> **Claude:** 💡 *ModelScout: this is a T1 mechanical task — `/model haiku`
+> would do it at ~1/5 the cost.*
+> Renaming now… ✻
+>
+> — and for a big mismatch you get an actual popup:
+>
+> ┌─ **This is bulk T1 work but you're on Opus ($25/1M out). Route it?** ─┐
+> │  ▸ Run in a Haiku subagent (Recommended) — ~5× cheaper               │
+> │  ▸ Continue on Opus                                                  │
+> │  ▸ Mute ModelScout this session                                      │
+> └──────────────────────────────────────────────────────────────────────┘
+
+Pick option 1 and the task runs on the cheap model **automatically** — no
+settings, no `/model`, you stay on your main model for the next hard thing.
+When the model already fits the task, ModelScout says nothing at all. And it
+works in both directions — try to debug a race condition on a cheap model and
+it will tell you to route *up*.
+
 ## Quickstart
 
 ### Claude Code (plugin — richest experience)
@@ -57,11 +82,28 @@ inventory  →  classify  →  recommend
 ```bash
 git clone https://github.com/iknowterry/modelscout
 cp -r modelscout/skills/modelscout ~/.claude/skills/
-cp -r modelscout/core ~/.claude/skills/modelscout/core
+cp -r modelscout/core modelscout/hooks ~/.claude/skills/modelscout/
 ```
 
-Then just ask: *"which model should I use for this refactor?"* — or let it
-route subagents automatically (T1 subtasks → Haiku, T3 → Opus).
+That enables ask-mode: *"which model should I use for this refactor?"* — plus
+automatic subagent routing (T1 subtasks → Haiku, T3 → Opus).
+
+**Proactive mode** (suggestions appear without asking — see "What you'll
+actually see" above) needs one hook in `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command",
+          "command": "bash \"$HOME/.claude/skills/modelscout/hooks/proactive-check.sh\"" } ] }
+    ]
+  }
+}
+```
+
+(Installed as a plugin from a marketplace, the hook in `hooks/hooks.json` is
+picked up automatically — no settings edit needed.)
 
 ### Codex CLI / Gemini CLI
 

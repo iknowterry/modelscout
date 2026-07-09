@@ -75,3 +75,12 @@ starting a task (not mid-flow), append a one-line mode suggestion:
 
 Keep it to one line (e.g. "T1 → Haiku is plenty; accept-edits mode makes sense
 here"). Skip it entirely when the user only asked a pricing/model question.
+
+## Proactive mode (hook)
+
+If the `hooks/proactive-check.sh` UserPromptSubmit hook is installed, a
+`<modelscout-proactive>` instruction appears in context at session start.
+Follow it exactly: silently tier every real task, one-line nudge on small
+mismatches, AskUserQuestion popup (subagent / continue / mute) on large ones,
+silence when the model fits, and full silence after a mute. This SKILL's
+heuristics and inventory rules apply unchanged.
