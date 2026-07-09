@@ -1,10 +1,18 @@
 # ModelScout 🔭
 
 **Stop paying frontier-model prices for find-and-replace work.**
+**On a subscription? Stop burning your usage limits on it.**
 
 Every AI subscription and API key you own has a lineup of models behind it —
 and most people run everything on the biggest one. That's like taking a truck
-to buy coffee. The price spread is not small:
+to buy coffee. Whatever you pay with, the spread is not small:
+
+- **API users** pay in dollars — the price gap between tiers is 5–10×.
+- **Subscribers** (Claude Max/Pro, ChatGPT Plus, Gemini Advanced) pay in
+  **quota**: every frontier-model request burns your rate limit ~5× faster than
+  an economy model doing the same job. Tier-right routing is the difference
+  between coding until midnight and hitting the "you've reached your limit"
+  wall at 4pm.
 
 | The task | What most people use | What it needed | Price gap |
 |---|---|---|---|
@@ -33,16 +41,19 @@ doesn't guess:
   and the reason — "this is a T1 mechanical edit, no reasoning needed, so Haiku
   at $1/$5 clears it." After a few weeks you'll tier tasks yourself without
   asking. A tool that makes itself unnecessary is a tool you can trust.
+- ⏳ **Your rate limits last longer.** For subscribers this is the killer
+  benefit: routing mechanical work to light models preserves your frontier-model
+  quota for the work that actually needs it — same subscription, more usable
+  hours per day, fewer limit walls.
 - 🚦 **It knows when NOT to cheap out.** When uncertain, it routes *up* — a
   failed cheap run costs more than the right model the first time.
 - 🧭 **Bonus (Claude Code):** it also suggests the right session mode — plan
   mode for architecture, accept-edits for mechanical work — so both your tokens
   *and* your attention go where they matter.
 
-**On a subscription instead of API keys? Even better.** No key needed — declare
-what you have once ("Claude Max + ChatGPT Plus") and ModelScout advises from
-that. Cheap-model routing doesn't save you dollars there; it saves your **usage
-quota** — fewer "you've hit your limit" walls at 4pm.
+**No API keys needed for subscribers.** Declare what you have once ("Claude
+Max + ChatGPT Plus") and ModelScout advises from that — savings framed in what
+you actually spend: **tokens and rate-limit headroom**, not dollars.
 
 ```
 inventory  →  classify  →  recommend
