@@ -75,6 +75,19 @@ When the model already fits the task, ModelScout says nothing at all. And it
 works in both directions — try to debug a race condition on a cheap model and
 it will tell you to route *up*.
 
+**Auto mode — stop deciding entirely.** Pick "Always auto-route" in the popup
+(or set `{"mode": "auto"}` in `~/.claude/modelscout-profile.json`) and clear
+mechanical tasks route themselves — no popup, just a receipt:
+
+> ⚡ *ModelScout: auto-routed to Haiku (T1 — mechanical edit)* — done, 43 files
+> updated.
+
+The guardrails that keep auto mode trustworthy: only clear, **self-contained**
+T1/T2 tasks are routed (hard, context-heavy, or destructive work always stays
+on your main model — hard work is *never* routed down); every routing leaves a
+visible receipt so you can say "redo that on Opus"; and `modelscout: suggest
+mode` turns it off in one sentence.
+
 ## Quickstart
 
 ### Claude Code (plugin — richest experience)

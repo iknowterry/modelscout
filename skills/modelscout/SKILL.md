@@ -79,8 +79,16 @@ here"). Skip it entirely when the user only asked a pricing/model question.
 ## Proactive mode (hook)
 
 If the `hooks/proactive-check.sh` UserPromptSubmit hook is installed, a
-`<modelscout-proactive>` instruction appears in context at session start.
-Follow it exactly: silently tier every real task, one-line nudge on small
-mismatches, AskUserQuestion popup (subagent / continue / mute) on large ones,
-silence when the model fits, and full silence after a mute. This SKILL's
-heuristics and inventory rules apply unchanged.
+`<modelscout-proactive>` instruction appears in context at session start, in
+one of two modes controlled by `"mode"` in `~/.claude/modelscout-profile.json`:
+
+- **`suggest`** (default): silently tier every real task; one-line nudge on
+  small mismatches; AskUserQuestion popup on large ones (route to subagent /
+  continue / always auto-route / mute); silence when the model fits.
+- **`auto`**: clear self-contained T1/T2 tasks are delegated to right-sized
+  subagents WITHOUT asking, with a one-line "⚡ auto-routed" receipt. T3+,
+  context-heavy, ambiguous, or destructive work stays on the current model.
+  "modelscout: suggest mode" reverts.
+
+Follow the injected instruction exactly; this SKILL's heuristics and inventory
+rules apply unchanged in both modes.
