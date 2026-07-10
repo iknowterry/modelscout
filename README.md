@@ -129,6 +129,18 @@ actually see" above) needs one hook in `~/.claude/settings.json`:
 (Installed as a plugin from a marketplace, the hook in `hooks/hooks.json` is
 picked up automatically — no settings edit needed.)
 
+### Claude Chat / Cowork (claude.ai)
+
+Advisory-only (chat can't run the discovery script), but the same brain:
+
+1. Download the skill zip:
+   **[modelscout-claude-ai.zip](https://github.com/iknowterry/modelscout/releases/latest/download/modelscout-claude-ai.zip)**
+2. In claude.ai or the desktop app: **Settings → Skills → Add** → upload the zip.
+3. Ask any chat: *"which model should I use for X?"* — it asks once what
+   subscriptions/keys you have, then recommends with live pricing.
+
+(Or build the zip yourself: `cd adapters/claude-ai && zip -r modelscout-claude-ai.zip modelscout`)
+
 ### Codex CLI / Gemini CLI
 
 Copy `core/` to `~/.modelscout/core/`, then paste the snippet from
