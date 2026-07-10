@@ -1,9 +1,9 @@
 {
   "name": "modelscout",
   "version": "0.2.0",
-  "description": "Recommends (or auto-routes) the right AI model per task \u2014 grounded in the models your keys and subscriptions can actually access, with live pricing. Saves API users money and saves subscribers tokens and rate-limit quota.",
+  "description": "Recommends (or auto-routes) the right AI model per task — grounded in the models your keys and subscriptions can actually access, with live pricing. Saves API users money and saves subscribers tokens and rate-limit quota.",
   "author": {
-    "name": "Pruthisith",
+    "name": "iKnowTerry",
     "email": "pruthisith@gmail.com"
   },
   "homepage": "https://github.com/iknowterry/modelscout",
