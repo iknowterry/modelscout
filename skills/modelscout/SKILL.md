@@ -1,6 +1,6 @@
 ---
 name: modelscout
-description: Recommends which AI model (Anthropic, OpenAI, Gemini, OpenRouter) to use for a given task, grounded in the models the user's API keys or subscriptions can actually access — with live pricing and capability data. Use when the user asks "which model should I use", "is Opus/GPT-5 overkill for this", "what's the cheapest model that can do X", wants to cut LLM costs, complains about hitting usage/rate limits too fast, asks what models they have access to, or before delegating subtasks to subagents where a cheaper model may suffice.
+description: Recommends which AI model (Anthropic, OpenAI, Gemini, OpenRouter) to use for a given task, grounded in the models the user's API keys or subscriptions can actually access — with live pricing and capability data. Use when the user asks "which model should I use", "is Opus/GPT-5 overkill for this", "what's the cheapest model that can do X", wants to cut LLM costs, complains about hitting usage/rate limits too fast, asks what models they have access to, mentions ModelScout by name, or before delegating subtasks to subagents where a cheaper model may suffice.
 ---
 
 # ModelScout (Claude adapter)

@@ -99,6 +99,33 @@ on your main model — hard work is *never* routed down); every routing leaves a
 visible receipt so you can say "redo that on Opus"; and `modelscout: suggest
 mode` turns it off in one sentence.
 
+## How to invoke it — prompts that work
+
+ModelScout activates when your message matches what it does. These phrasings
+trigger it reliably:
+
+| You want | Say (any language works) |
+|---|---|
+| A recommendation for a task | *"Which model should I use to [task]?"* · *"Is Opus overkill for this?"* |
+| The budget angle | *"What's the cheapest model that can [task]?"* |
+| Help with limits | *"I keep hitting my usage limit"* · *"my quota runs out by 4pm"* |
+| See your inventory | *"What models do I have access to?"* · *"Refresh my model inventory"* |
+| **Guaranteed trigger** | Start with the name: *"**ModelScout:** which model for this refactor?"* |
+
+**If it doesn't wake up**, say the magic word — mentioning **"modelscout"**
+anywhere in the message is the most reliable trigger on every surface. In
+Claude Code you can also invoke it directly as a slash command.
+
+**What needs no prompt at all** (Claude Code with the plugin): proactive mode
+nudges you on mismatches automatically, and auto mode routes mechanical tasks
+with an ⚡ receipt. Control it by talking to it: *"modelscout: suggest mode"* /
+*"modelscout: auto mode"* / the mute option in any popup.
+
+> 💡 **Why you often see nothing:** silence is a feature. When the model you're
+> on already fits the task, ModelScout says nothing — it only speaks when
+> switching would actually help. If you want to double-check it's alive, ask
+> *"ModelScout: is this the right model for what we're doing?"*
+
 ## Quickstart
 
 ### Claude Code (plugin — richest experience)

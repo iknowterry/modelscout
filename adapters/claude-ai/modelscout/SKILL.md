@@ -1,6 +1,6 @@
 ---
 name: modelscout
-description: Recommends which AI model (Anthropic, OpenAI, Gemini, OpenRouter) to use for a given task, grounded in what the user actually has access to — with pricing and capability reasoning. Use when the user asks "which model should I use", "is Opus/GPT-5 overkill for this", "what's the cheapest model that can do X", wants to cut LLM costs, complains about hitting usage or rate limits too fast, or asks what model to pick for a project. ALSO use proactively at the start of any substantial new task (building a deck or document, research project, coding task, long analysis) to silently check whether the current model fits the task's tier — speak up only on a mismatch.
+description: Recommends which AI model (Anthropic, OpenAI, Gemini, OpenRouter) to use for a given task, grounded in what the user actually has access to — with pricing and capability reasoning. Use when the user asks "which model should I use", "is Opus/GPT-5 overkill for this", "what's the cheapest model that can do X", wants to cut LLM costs, complains about hitting usage or rate limits too fast, asks what model to pick for a project, or mentions ModelScout by name. ALSO use proactively at the start of any substantial new task (building a deck or document, research project, coding task, long analysis) to silently check whether the current model fits the task's tier — speak up only on a mismatch.
 ---
 
 # ModelScout (claude.ai chat adapter)
