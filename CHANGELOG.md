@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1] - 2026-07-17
+
+### Added
+- SessionStart hook: announces "ModelScout active" in the first working reply so users see it running from prompt one
+- Always-on tier receipts by default ("T2 — model fits" on every real task); "modelscout: quiet receipts" reverts to mismatch-only
+- Stronger (MANDATORY) instruction framing so per-task tier classification is never skipped
+
 ## [0.2.0] - 2026-07-09
 
 ### Added
