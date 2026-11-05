@@ -248,7 +248,7 @@ def build_block(prompt, transcript_path, eff, host):
             "the cheapest model the user has whose price band fits the tier (see the modelscout skill)"
         settings = "the user types"
         own = ""
-    receipt = ("If the model FITS, still show line 1 plus \"<Model> fits — doing it here\"."
+    receipt = ("If the model FITS, show one quote line: > `🔭 ModelScout` **<Tier> <tier name>** · `<Model>` fits — doing it here"
                if eff["receipts"] == "always" else
                "If the model FITS, show nothing — just do the work.")
     return f"""<modelscout host="{host}" mode="{eff['mode']}" tier-hint="{tier_hint}" hint-basis="{basis}" current-model="{current}" on-mismatch="{action_line}">
@@ -258,10 +258,11 @@ chit-chat. tier-hint is a keyword guess (reclassify it) and current-model is a
 guess: the model id in your own system prompt always wins.
 1. Tier the task: T1 mechanical, T2 standard, T3 hard reasoning, T4 frontier.
    Best fit: {fit}.
-2. Show this card FIRST, in the user's language, max 3 lines:
-   🔭 ModelScout · <Tier> <tier name> — <the task in 5–8 words>
-      Best fit: <Model> — <why, one clause> · <quota/cost vs current, e.g. "~1/5 of Opus">
-      → <what happens next>
+2. Show this card FIRST, in the user's language, as a Markdown quote block
+   (keep the backticks and bold exactly; they make it stand out), max 3 lines:
+   > `🔭 ModelScout` **<Tier> <tier name>** · <the task in 5–8 words>
+   > Best fit: `<Model>` — <why, one clause> · <quota/cost vs current, e.g. "~1/5 of Opus">
+   > → ⚡ <what happens next>
    {receipt}
 3. On a mismatch, act per on-mismatch for the tier you chose:
 {rules}

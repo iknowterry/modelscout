@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works in any Agent Skills host (Claude Code, Codex, ChatGPT, Gemini CLI, claude.ai). Scripts need python3 and bash; auto-routing needs a host that can start subagents on a chosen model.
 metadata:
   author: iKnowTerry
-  version: "0.3.1"
+  version: "0.3.2"
   homepage: https://github.com/iknowterry/modelscout
 ---
 
@@ -52,10 +52,18 @@ At the start of each new substantial task, show this card in the user's
 language, then act on it. Skip it for follow-ups ("yes", "continue") and
 quick questions.
 
-```text
-🔭 ModelScout · T1 mechanical — rename a field across 40 files
-   Best fit: Haiku — pattern edits need no deep reasoning · ~1/5 of Opus quota
-   → Routing to a Haiku subagent
+```markdown
+> `🔭 ModelScout` **T1 mechanical** · rename a field across 40 files
+> Best fit: `Haiku` — pattern edits need no deep reasoning · ~1/5 of Opus quota
+> → ⚡ Routing to a `Haiku` subagent
+```
+
+Keep the quote block, the code-styled `🔭 ModelScout` badge and the bold tier:
+they make the card stand out from normal text. When the model fits, use one
+line in the same style:
+
+```markdown
+> `🔭 ModelScout` **T3 hard reasoning** · `Opus` fits — doing it here
 ```
 
 The default action on a mismatch comes from the user's settings: a per-tier

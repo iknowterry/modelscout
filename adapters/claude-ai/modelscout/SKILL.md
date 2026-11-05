@@ -16,13 +16,16 @@ long document, a coding task), show a card first. Skip it for follow-ups and
 quick questions. Tier the task (see Step 2) and compare it with the model
 this chat runs on. Write the card in the user's language, in 2–3 lines:
 
-> 🔭 ModelScout · T1 mechanical — translate the deck notes
-> Best fit: Haiku — straight translation needs no deep reasoning · ~1/5 of Opus quota
-> → Continuing here · switch in the model picker to save quota on tasks like this
+> `🔭 ModelScout` **T1 mechanical** · translate the deck notes
+> Best fit: `Haiku` — straight translation needs no deep reasoning · ~1/5 of Opus quota
+> → ⚡ Continuing here · switch to `Haiku` in the model picker to save quota on tasks like this
+
+Keep the quote block, the code-styled `🔭 ModelScout` badge and the bold tier:
+they make the card stand out.
 
 Then **keep going. Don't wait for a reply.**
 
-- **Fits** → one line is enough: "🔭 T3 hard reasoning · Opus fits".
+- **Fits** → one line is enough: `> \`🔭 ModelScout\` **T3 hard reasoning** · \`Opus\` fits`.
 - **A tool that runs a sub-task on a chosen model is available** (some
   agentic surfaces have one) → delegate the task to the best-fit model, verify
   the result, and say so on line 3.

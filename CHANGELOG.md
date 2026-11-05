@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.2] - 2026-11-06
+
+### Changed
+- The per-task card now stands out from normal replies: a quote block with a code-styled `🔭 ModelScout` badge, bold tier, highlighted model names and a ⚡ action line (Claude Code, Codex, Gemini and claude.ai)
+
 ## [0.3.1] - 2026-11-05
 
 ### Fixed

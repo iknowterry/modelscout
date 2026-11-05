@@ -73,15 +73,20 @@ model:
 
 > **You:** rename `organizerId` to `ownerId` across the codebase and fix imports
 >
-> **Claude:** 🔭 *ModelScout · T1 mechanical — rename a field across files*
-> *Best fit: Haiku — pattern edits need no deep reasoning · ~1/5 of Opus quota*
-> *→ Routing to a Haiku subagent*
+> **Claude:**
+>
+> > `🔭 ModelScout` **T1 mechanical** · rename a field across files\
+> > Best fit: `Haiku` — pattern edits need no deep reasoning · ~1/5 of Opus quota\
+> > → ⚡ Routing to a `Haiku` subagent
+>
 > …✓ 43 files updated, verified, imports compile.
 
 It works in both directions. Ask a Haiku session to debug a race condition and
 the card says *Best fit: Opus* and routes the work **up** to an Opus subagent.
-When your current model already fits, the card is one line, *"Opus fits — doing
-it here"*, and the work continues. Your main session stays on its model, ready
+When your current model already fits, the card is one line:
+> `🔭 ModelScout` **T3 hard reasoning** · `Opus` fits — doing it here
+
+and the work continues. Your main session stays on its model, ready
 for the next hard thing.
 
 ### Choose how it behaves: switch, ask, or stay
