@@ -1,6 +1,6 @@
 ---
 name: modelscout
-description: Recommends which AI model (Anthropic, OpenAI, Gemini, OpenRouter) to use for a given task, grounded in what the user actually has access to — with pricing and capability reasoning. Use when the user asks "which model should I use", "is Opus/GPT-5 overkill for this", "what's the cheapest model that can do X", wants to cut LLM costs, complains about hitting usage or rate limits too fast, asks what model to pick for a project, or mentions ModelScout by name. ALSO use proactively at the start of any substantial new task (building a deck or document, research project, coding task, long analysis) to silently check whether the current model fits the task's tier — speak up only on a mismatch.
+description: Recommends which AI model (Anthropic, OpenAI, Gemini, OpenRouter) to use for a given task, grounded in what the user actually has access to — with pricing and capability reasoning. Use when the user asks "which model should I use", "is Opus/GPT-5 overkill for this", "what's the cheapest model that can do X", wants to cut LLM costs, complains about hitting usage or rate limits too fast, asks what model to pick for a project, or mentions ModelScout by name. ALSO use proactively at the start of any substantial new task (building a deck or document, research project, coding task, long analysis) to show a short ModelScout card (task tier, best-fit model, why) and route or continue accordingly.
 ---
 
 # ModelScout (claude.ai chat adapter)
@@ -9,24 +9,32 @@ Recommend the right AI model for a task: **what they have → what the task
 needs → cheapest model that clears the bar**. This adapter is advisory-only
 (no local discovery script in chat).
 
-## Proactive check (no question needed)
+## Per-task card (no question needed)
 
 When the user STARTS a substantial new task (a deck, a research project, a
-long document, a coding task) — not on follow-ups or quick questions —
-silently tier the task (see Step 2) and compare against the model this chat
-is running on:
+long document, a coding task), show a card first. Skip it for follow-ups and
+quick questions. Tier the task (see Step 2) and compare it with the model
+this chat runs on. Write the card in the user's language, in 2–3 lines:
 
-- **Model fits the tier → say nothing about models.** Just do the task.
-- **Mismatch → prepend exactly ONE line** before starting, then do the work
-  without waiting, e.g.:
-  - "💡 ModelScout: งานนี้เป็น T1/T2 — สลับเป็น Haiku ใน model picker จะประหยัดโควต้ากว่า ~5 เท่า"
-  - "💡 ModelScout: this is T3 reasoning work — worth switching to Opus in
-    the model picker before we go deep."
-- Match the user's language. At most one nudge per task; never repeat after
-  the user declines or ignores it; if the user says to stop suggesting, stay
-  silent for the rest of the conversation.
-- You cannot switch the model yourself — the user changes it in the model
-  picker (their reply continues on whichever model they choose).
+> 🔭 ModelScout · T1 mechanical — translate the deck notes
+> Best fit: Haiku — straight translation needs no deep reasoning · ~1/5 of Opus quota
+> → Continuing here · switch in the model picker to save quota on tasks like this
+
+Then **keep going. Don't wait for a reply.**
+
+- **Fits** → one line is enough: "🔭 T3 hard reasoning · Opus fits".
+- **A tool that runs a sub-task on a chosen model is available** (some
+  agentic surfaces have one) → delegate the task to the best-fit model, verify
+  the result, and say so on line 3.
+- **No such tool** → you can't switch models yourself. Do the work on the
+  current model and give the model-picker tip. For a T3/T4 task on an economy
+  model, say clearly that switching up first is worth it.
+- **Choices**: the user can reply `switch`, `stay`, `always stay for T1` or
+  `ModelScout off`. Honor these for the rest of THIS conversation only. Chat
+  can't save settings between conversations, so say that once if they set a
+  default. To keep a default everywhere, they can add it to their profile
+  preferences, for example: "ModelScout: never show cards for T1 tasks".
+- One card per task. Never repeat a card the user dismissed.
 
 ## Step 1 — Establish what the user has
 

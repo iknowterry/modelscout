@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0] - 2026-11-05
+
+### Added
+- Per-task ModelScout card on every new task: tier, best-fit model, a one-line reason, and what happens next, in the user's language
+- Default `auto` mode routes each mismatched task straight to a best-fit subagent, up-tier (Opus) as well as down (Haiku/Sonnet), then verifies the result
+- `ask` mode popup: Run in subagent / Stay / Always subagent for this tier / Always stay for this tier
+- Per-tier defaults (`modelscout: T1 stay`, `modelscout: T3 ask`) that override the mode; new `inform` and `off` modes
+- `/modelscout:prefs` command: view and change defaults through a popup
+- `scripts/prefs.py`: the single writer of the profile; keeps other fields like declared subscriptions
+- Current-model detection from the session transcript, including `/model` changes made mid-session
+
+### Changed
+- The hook now injects a compact block on every new task prompt instead of once per session, so ModelScout stays active in long sessions and after compaction
+- `modelscout: …` settings commands are handled inside the hook: saved instantly, with no model turn
+- Short follow-ups ("yes", "continue", "ต่อเลย") never trigger a card
+- Legacy `"mode": "suggest"` profiles are read as `ask`
+
 ## [0.2.1] - 2026-07-17
 
 ### Added

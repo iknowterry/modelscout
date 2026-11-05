@@ -63,46 +63,64 @@ inventory  →  classify  →  recommend
 
 ## What you'll actually see
 
-**You don't have to ask.** With proactive mode on, ModelScout watches every
-task and only speaks when something's off:
+**You don't have to ask.** Every time you start a new task, ModelScout shows a
+small card: what kind of task it is, which model fits it best and why, and
+then it **just gets on with it**, handing the work to a subagent running that
+model:
 
 > **You:** rename `organizerId` to `ownerId` across the codebase and fix imports
 >
-> **Claude:** 💡 *ModelScout: this is a T1 mechanical task — `/model haiku`
-> would do it at ~1/5 the cost.*
-> Renaming now… ✻
->
-> — and for a big mismatch you get an actual popup:
->
-> ┌─ **This is bulk T1 work but you're on Opus ($25/1M out). Route it?** ─┐
-> │  ▸ Run in a Haiku subagent (Recommended) — ~5× cheaper               │
-> │  ▸ Continue on Opus                                                  │
-> │  ▸ Mute ModelScout this session                                      │
-> └──────────────────────────────────────────────────────────────────────┘
+> **Claude:** 🔭 *ModelScout · T1 mechanical — rename a field across files*
+> *Best fit: Haiku — pattern edits need no deep reasoning · ~1/5 of Opus quota*
+> *→ Routing to a Haiku subagent*
+> …✓ 43 files updated, verified, imports compile.
 
-Pick option 1 and the task runs on the cheap model **automatically** — no
-settings, no `/model`, you stay on your main model for the next hard thing.
-When the model already fits the task, ModelScout says nothing at all. And it
-works in both directions — try to debug a race condition on a cheap model and
-it will tell you to route *up*.
+It works in both directions. Ask a Haiku session to debug a race condition and
+the card says *Best fit: Opus* and routes the work **up** to an Opus subagent.
+When your current model already fits, the card is one line, *"Opus fits — doing
+it here"*, and the work continues. Your main session stays on its model, ready
+for the next hard thing.
 
-**Auto mode — stop deciding entirely.** Pick "Always auto-route" in the popup
-(or set `{"mode": "auto"}` in `~/.claude/modelscout-profile.json`) and clear
-mechanical tasks route themselves — no popup, just a receipt:
+### Choose how it behaves: switch, ask, or stay
 
-> ⚡ *ModelScout: auto-routed to Haiku (T1 — mechanical edit)* — done, 43 files
-> updated.
+| Mode | On a mismatch ModelScout… | Set it with |
+|---|---|---|
+| **auto** (default) | routes the task to a best-fit subagent straight away | `modelscout: auto` |
+| **ask** | pops up a choice first (below) | `modelscout: ask` |
+| **inform** | shows the card and stays on your current model | `modelscout: inform` |
+| **off** | stays silent | `modelscout: off` |
 
-The guardrails that keep auto mode trustworthy: only clear, **self-contained**
-T1/T2 tasks are routed (hard, context-heavy, or destructive work always stays
-on your main model — hard work is *never* routed down); every routing leaves a
-visible receipt so you can say "redo that on Opus"; and `modelscout: suggest
-mode` turns it off in one sentence.
+In **ask** mode you get a real popup, and your answer can become the default:
+
+> ┌─ **ModelScout: T1 mechanical task — pattern edits. Who should do it?** ─┐
+> │  ▸ Run in a Haiku subagent (Recommended)                               │
+> │  ▸ Stay on Opus 5.5                                                    │
+> │  ▸ Always use a Haiku subagent for T1 tasks                            │
+> │  ▸ Always stay for T1 tasks                                            │
+> └────────────────────────────────────────────────────────────────────────┘
+
+**Per-tier defaults** override the mode, for example "auto-route everything,
+but always ask me on T3 work":
+
+```text
+modelscout: auto
+modelscout: T3 ask
+```
+
+Typing `modelscout: …` changes the setting instantly. It's handled by the hook,
+so it costs no model turn. `modelscout: status` shows your settings,
+`modelscout: reset` restores the defaults, and **`/modelscout:prefs`** opens
+the same settings as a popup.
+
+**Guardrails.** Routed work is always verified by your main model before it
+reports back, and redone if it's weak. Destructive or outward-facing steps
+(push, deploy, delete, send) and 1–2 step jobs stay on your main session.
+Follow-ups like "yes" or "continue" never trigger a card.
 
 ## How to invoke it — prompts that work
 
-ModelScout activates when your message matches what it does. These phrasings
-trigger it reliably:
+**Most of the time you don't.** The card appears on every new task by itself.
+For questions *about* models, these phrasings trigger the full advisor:
 
 | You want | Say (any language works) |
 |---|---|
@@ -110,37 +128,35 @@ trigger it reliably:
 | The budget angle | *"What's the cheapest model that can [task]?"* |
 | Help with limits | *"I keep hitting my usage limit"* · *"my quota runs out by 4pm"* |
 | See your inventory | *"What models do I have access to?"* · *"Refresh my model inventory"* |
-| **Guaranteed trigger** | Start with the name: *"**ModelScout:** which model for this refactor?"* |
-
-**If it doesn't wake up**, say the magic word — mentioning **"modelscout"**
-anywhere in the message is the most reliable trigger on every surface. In
-Claude Code you can also invoke it directly as a slash command.
-
-**What needs no prompt at all** (Claude Code with the plugin): proactive mode
-nudges you on mismatches automatically, and auto mode routes mechanical tasks
-with an ⚡ receipt. Control it by talking to it: *"modelscout: suggest mode"* /
-*"modelscout: auto mode"* / the mute option in any popup.
-
-> 💡 **Why you often see nothing:** silence is a feature. When the model you're
-> on already fits the task, ModelScout says nothing — it only speaks when
-> switching would actually help. If you want to double-check it's alive, ask
-> *"ModelScout: is this the right model for what we're doing?"*
+| **Guaranteed trigger** | Start with the name: *"**ModelScout**, which model for this refactor?"* |
 
 ## Quickstart
 
 ### Claude Code (plugin — richest experience)
 
 ```bash
-git clone https://github.com/iknowterry/modelscout
-cp -r modelscout/skills/modelscout ~/.claude/skills/
-cp -r modelscout/core modelscout/hooks ~/.claude/skills/modelscout/
+claude plugin marketplace add iknowterry/modelscout
 ```
 
-That enables ask-mode: *"which model should I use for this refactor?"* — plus
-automatic subagent routing (T1 subtasks → Haiku, T3 → Opus).
+```bash
+claude plugin install modelscout@modelscout
+```
 
-**Proactive mode** (suggestions appear without asking — see "What you'll
-actually see" above) needs one hook in `~/.claude/settings.json`:
+Restart Claude Code. You get the per-task card with auto-routing, the
+`/modelscout:prefs` settings popup and the full advisor skill. No settings
+edits are needed: the hooks register themselves. To update later, run
+`claude plugin marketplace update modelscout`, then
+`claude plugin update modelscout@modelscout`.
+
+<details><summary>Manual install (no plugin system)</summary>
+
+```bash
+git clone https://github.com/iknowterry/modelscout
+cp -r modelscout/skills/modelscout ~/.claude/skills/
+cp -r modelscout/core modelscout/hooks modelscout/scripts ~/.claude/skills/modelscout/
+```
+
+Then add the per-task hook to `~/.claude/settings.json`:
 
 ```json
 {
@@ -152,9 +168,7 @@ actually see" above) needs one hook in `~/.claude/settings.json`:
   }
 }
 ```
-
-(Installed as a plugin from a marketplace, the hook in `hooks/hooks.json` is
-picked up automatically — no settings edit needed.)
+</details>
 
 ### Claude Chat / Cowork (claude.ai)
 

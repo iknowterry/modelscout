@@ -76,19 +76,27 @@ starting a task (not mid-flow), append a one-line mode suggestion:
 Keep it to one line (e.g. "T1 → Haiku is plenty; accept-edits mode makes sense
 here"). Skip it entirely when the user only asked a pricing/model question.
 
-## Proactive mode (hook)
+## Per-task card (hook)
 
-If the `hooks/proactive-check.sh` UserPromptSubmit hook is installed, a
-`<modelscout-proactive>` instruction appears in context at session start, in
-one of two modes controlled by `"mode"` in `~/.claude/modelscout-profile.json`:
+With the plugin installed, a `<modelscout>` block is injected with each new
+task prompt. It carries a keyword tier hint, the detected current model, and
+the user's action per tier (`switch` / `ask` / `stay`), resolved from
+`~/.claude/modelscout-profile.json`. A per-tier default wins over the mode;
+the mode is the fallback (`auto` means switch, `ask` means ask, `inform` means
+stay).
 
-- **`suggest`** (default): silently tier every real task; one-line nudge on
-  small mismatches; AskUserQuestion popup on large ones (route to subagent /
-  continue / always auto-route / mute); silence when the model fits.
-- **`auto`**: clear self-contained T1/T2 tasks are delegated to right-sized
-  subagents WITHOUT asking, with a one-line "⚡ auto-routed" receipt. T3+,
-  context-heavy, ambiguous, or destructive work stays on the current model.
-  "modelscout: suggest mode" reverts.
+- **Card**: tier, best-fit model, a one-clause reason and what happens next,
+  written in the user's language. It is the user's lesson in which model fits
+  which task.
+- **switch**: delegate straight away to an Agent subagent with the best-fit
+  `model`. This works up-tier as well as down. Verify the result before
+  reporting.
+- **ask**: AskUserQuestion with "Run in a <model> subagent / Stay / Always
+  subagent for <tier> / Always stay for <tier>". Persist the "Always" choices
+  only through `scripts/prefs.py default <Tier> switch|stay`.
+- **stay**: show the card and do the work on the current model.
 
-Follow the injected instruction exactly; this SKILL's heuristics and inventory
-rules apply unchanged in both modes.
+Settings change with `/modelscout:prefs` or by typing
+`modelscout: auto|ask|inform|off|status|reset|T1 stay`. The hook handles
+those directly. Follow the injected block exactly; this skill's heuristics
+and inventory rules still apply.
