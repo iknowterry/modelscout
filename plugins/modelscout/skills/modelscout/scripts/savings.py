@@ -72,11 +72,25 @@ class Prices:
                 + u["cache_read"] * p.get("cache_read", pin * 0.1)) / 1e6
 
 
+def _ts(value):
+    try:
+        from datetime import datetime
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except Exception:
+        return None
+
+
 def subagent_usage(path):
+    """Token usage (deduplicated per API message), model, and wall time from a subagent log."""
     seen, u = set(), defaultdict(int)
-    model = None
+    model, first, last = None, None, None
     try:
         for line in path.open():
+            m = re.search(r'"timestamp":"([^"]+)"', line)
+            t = _ts(m.group(1)) if m else None
+            if t:
+                first = t if first is None else min(first, t)
+                last = t if last is None else max(last, t)
             if '"assistant"' not in line:
                 continue
             d = json.loads(line)
@@ -91,8 +105,9 @@ def subagent_usage(path):
             u["cache_write"] += us.get("cache_creation_input_tokens", 0) or 0
             u["cache_read"] += us.get("cache_read_input_tokens", 0) or 0
     except Exception:
-        return None, None
-    return model, dict(u)
+        return None, None, 0
+    ms = int((last - first) * 1000) if first and last else 0
+    return model, dict(u), ms
 
 
 def scan(days, include_all):
@@ -129,12 +144,12 @@ def scan(days, include_all):
             if not include_all and not MARKER.match(desc or ""):
                 continue
             sub = tr.parent / tr.stem / "subagents" / f"agent-{r['agentId']}.jsonl"
-            model, usage = subagent_usage(sub)
+            model, usage, log_ms = subagent_usage(sub)
             model = r.get("resolvedModel") or model
             if not usage or not main_model or not model:
                 continue
             routes.append({"description": desc, "main": main_model, "routed": model, "usage": usage,
-                           "ms": r.get("totalDurationMs") or 0, "session": tr.stem[:8]})
+                           "ms": r.get("totalDurationMs") or log_ms, "session": tr.stem[:8]})
     return routes
 
 
@@ -166,6 +181,10 @@ def report(routes, prices):
     return out
 
 
+def fmt_time(seconds):
+    return f"{seconds:.0f}s" if seconds < 60 else f"{seconds/60:.1f} min"
+
+
 def fmt_tokens(n):
     return f"{n/1e6:.2f}M" if n >= 1e6 else f"{n/1e3:.1f}K" if n >= 1e3 else str(int(n))
 
@@ -174,7 +193,7 @@ def render_text(o, days):
     d, u = o["down"], o["up"]
     lines = [f"🔭 ModelScout savings — last {days} days",
              f"Routed down to lighter models: {int(d['tasks'])} task(s), {fmt_tokens(d['tokens'])} tokens, "
-             f"{d['seconds']/60:.1f} min of subagent time"]
+             f"{fmt_time(d['seconds'])} of subagent time"]
     if d["tasks"]:
         lines += [f"  Saved: {d['saved_pct']:.0f}% of what the main model would have used "
                   f"(≈ ${d['saved_cost']:.2f} at API prices; ${d['routed_cost']:.2f} vs ${d['main_cost']:.2f})",
@@ -201,7 +220,7 @@ def render_markdown(o, days):
         f"| Tokens handled by lighter models | {fmt_tokens(d['tokens'])} |",
         f"| Saved vs. main model | **{d['saved_pct']:.0f}%** (${d['saved_cost']:.2f} at API prices) |",
         f"| Main-model budget freed | ≈ {fmt_tokens(d['main_equiv_tokens_saved'])} tokens |",
-        f"| Subagent run time (measured) | {d['seconds']/60:.1f} min |",
+        f"| Subagent run time (measured) | {fmt_time(d['seconds'])} |",
     ])
 
 

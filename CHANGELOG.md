@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-11-05
+
+### Fixed
+- Savings report showed 0 min of run time for subagents that ran in the background; duration now falls back to the subagent log's own timestamps
+- Run times under a minute are shown in seconds
+
 ## [0.3.0] - 2026-11-05
 
 ### Added

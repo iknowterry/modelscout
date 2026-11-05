@@ -12,7 +12,7 @@
       "name": "modelscout",
       "source": "./plugins/modelscout",
       "description": "Shows which AI model fits each task and why, then routes it to a best-fit subagent (or asks, or stays, per your defaults) — grounded in the models your keys and subscriptions can actually access, with live pricing. Saves API users money and saves subscribers tokens and rate-limit quota.",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "author": {
         "name": "iKnowTerry"
       },
