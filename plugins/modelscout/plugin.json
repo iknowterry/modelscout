@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "modelscout",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Shows which AI model fits each task and why, then routes the work to a best-fit model or subagent (or asks, or stays, per your defaults). Saves API spend and subscription rate-limit quota.",
   "author": { "name": "iKnowTerry", "email": "pruthisith@gmail.com" },
   "homepage": "https://github.com/iknowterry/modelscout",

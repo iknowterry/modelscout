@@ -225,11 +225,11 @@ def provider_picks(host):
     return picks
 
 
-def build_block(prompt, transcript_path, eff, host):
+def build_block(prompt, transcript_path, eff, host, host_model=None):
     tier_hint, basis = guess_tier(prompt)
-    model_id = detect_model(transcript_path) if host == "claude" else None
+    model_id = detect_model(transcript_path) if host == "claude" else host_model
     fam, cls = model_class(model_id)
-    current = (f"{model_id} ({fam}, T{cls}-class)" if fam
+    current = (f"{model_id} ({fam}, T{cls}-class)" if fam else model_id if model_id
                else "unknown — use the model id from your own system prompt")
     actions = {t: prefs.action_for(t, eff) for t in prefs.TIERS}
     action_line = " ".join(f"{t}={a}" for t, a in actions.items())
@@ -277,6 +277,8 @@ def detect_host(data, argv):
             return a.split("=", 1)[1]
     if data.get("hook_event_name") == "BeforeAgent":
         return "gemini"
+    if data.get("hook_event_name") == "pre_llm_call":
+        return "hermes"
     return "claude"
 
 
@@ -294,7 +296,8 @@ def main():
         return
     host = detect_host(data, sys.argv[1:])
     event = data.get("hook_event_name") or ("BeforeAgent" if host == "gemini" else "UserPromptSubmit")
-    prompt = data.get("prompt")
+    extra = data.get("extra") if isinstance(data.get("extra"), dict) else {}
+    prompt = data.get("prompt") if host != "hermes" else extra.get("user_message")
     if not isinstance(prompt, str):
         return
     prompt = prompt.strip()
@@ -311,7 +314,11 @@ def main():
     eff = prefs.effective()
     if eff["mode"] == "off" or is_trivial(prompt):
         return
-    emit_context(event, build_block(prompt, data.get("transcript_path"), eff, host))
+    block = build_block(prompt, data.get("transcript_path"), eff, host, extra.get("model"))
+    if host == "hermes":
+        print(json.dumps({"context": block}, ensure_ascii=False))
+    else:
+        emit_context(event, block)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.3] - 2026-11-06
+
+### Added
+- Hermes Agent support:
+  - `hermes skills install iknowterry/modelscout/plugins/modelscout/skills/modelscout` installs the skill; Hermes's security scan rates it SAFE
+  - The prompt hook understands Hermes's `pre_llm_call` shell-hook payload and replies in Hermes's `{"context": …}` format, using the current model reported in the payload
+  - Tested with Hermes v0.22.7
+
 ## [0.3.2] - 2026-11-06
 
 ### Changed

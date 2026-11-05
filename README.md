@@ -26,7 +26,7 @@ answers one question on every task, before you even ask:
 > *"Which model should I use for this?"*
 
 **Works in:** Claude Code · Codex · the ChatGPT desktop app · Gemini CLI ·
-claude.ai. It's one package, installed with each host's own plugin command.
+Hermes Agent · claude.ai. It's one package, installed with each host's own plugin command.
 
 ## Why it's different from "just ask the AI"
 
@@ -251,6 +251,27 @@ gemini skills install https://github.com/iknowterry/modelscout.git --path plugin
 
 That installs the skill. The hook script also understands Gemini's
 `BeforeAgent` event if you add it to `~/.gemini/settings.json`.
+
+### Hermes Agent (Nous Research)
+
+```bash
+hermes skills install iknowterry/modelscout/plugins/modelscout/skills/modelscout
+```
+
+Tested with Hermes v0.22.7: Hermes's security scan rates it SAFE, and the card
+and advice work right away. To get the card on every prompt, add the hook to
+`~/.hermes/config.yaml`. Clone the repo first, then approve the hook once when
+Hermes asks:
+
+```yaml
+hooks:
+  pre_llm_call:
+    - command: "~/modelscout/plugins/modelscout/hooks/proactive-check.sh"
+```
+
+Hermes gives subagents a model only through its delegation config. Per-task
+auto-routing therefore needs the `advanced-delegation` plugin's `model_map`.
+Without it, ModelScout recommends the model and tells you how to switch.
 
 ### Any other Agent Skills host
 

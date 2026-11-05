@@ -2,10 +2,10 @@
 name: modelscout
 description: Picks the right AI model for each task (Claude, OpenAI/ChatGPT, Gemini, OpenRouter), grounded in the models the user's keys or subscriptions can actually access, with live pricing. Shows a short card per task (tier, best-fit model, why), then routes the work to that model or subagent, asks, or stays, per the user's defaults. Use when the user asks "which model should I use", "is this model overkill", "what's the cheapest model that can do X", wants to cut LLM cost or save usage-limit quota, asks what models they have, asks how much ModelScout saved, mentions ModelScout by name, or before delegating subtasks to subagents where a lighter model may suffice.
 license: MIT
-compatibility: Works in any Agent Skills host (Claude Code, Codex, ChatGPT, Gemini CLI, claude.ai). Scripts need python3 and bash; auto-routing needs a host that can start subagents on a chosen model.
+compatibility: Works in any Agent Skills host (Claude Code, Codex, ChatGPT, Gemini CLI, Hermes Agent, claude.ai). Scripts need python3 and bash; auto-routing needs a host that can start subagents on a chosen model.
 metadata:
   author: iKnowTerry
-  version: "0.3.2"
+  version: "0.3.3"
   homepage: https://github.com/iknowterry/modelscout
 ---
 
@@ -75,7 +75,7 @@ injected. Then act according to what the host can do:
 | Host capability | switch | ask | stay |
 |---|---|---|---|
 | Subagents with a model choice (Claude Code Agent tool `model: haiku\|sonnet\|opus`) | Delegate now. Start the Agent `description` with `ModelScout:` and write a self-contained brief. Verify the result before reporting. | Popup (AskUserQuestion): run in subagent / stay / always subagent for this tier / always stay | Do it here |
-| Can only advise (Codex, Gemini CLI, chat apps) | Give the exact switch command or model-picker step and continue on the current model | Numbered choices in text, then wait for the answer | Do it here |
+| Can only advise (Codex, Gemini CLI, Hermes without a delegation model map, chat apps) | Give the exact switch command or model-picker step and continue on the current model | Numbered choices in text, then wait for the answer | Do it here |
 
 - Routing works up-tier as well as down: a T3 task in an economy-model session
   goes to a stronger model.

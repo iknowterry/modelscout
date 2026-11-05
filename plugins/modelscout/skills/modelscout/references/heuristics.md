@@ -1,8 +1,9 @@
 # ModelScout — Recommendation Heuristics
 
-Host-agnostic logic for recommending an AI model for a task. Any adapter (Claude
-skill, Codex `AGENTS.md`, Gemini CLI, Custom GPT, or your own agent) applies these
-rules against the user's inventory (`~/.claude/model-inventory.json`).
+Host-agnostic logic for recommending an AI model for a task. Any host that loads
+the ModelScout skill (Claude Code, Codex, ChatGPT, Gemini CLI, Hermes Agent,
+claude.ai, or your own agent) applies these rules against the user's inventory
+(`~/.claude/model-inventory.json`).
 
 The flow is always: **inventory → classify → recommend**. Never recommend a model
 from memory alone — ground every recommendation in the inventory.
