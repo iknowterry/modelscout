@@ -3,7 +3,7 @@
 A Custom GPT cannot run local scripts, so this adapter is **advisory-only** and
 the user supplies their inventory. Two setup steps in the GPT builder:
 
-1. **Knowledge**: upload `core/heuristics.md` from this repo.
+1. **Knowledge**: upload `plugins/modelscout/skills/modelscout/references/heuristics.md` from this repo. (Using the ChatGPT desktop app or Codex? Install the plugin instead; see the README.)
 2. **Instructions**: paste the block below.
 
 Optional upgrade: expose the inventory via an Action (a tiny endpoint that

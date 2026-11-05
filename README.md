@@ -20,10 +20,13 @@ to buy coffee. Whatever you pay with, the spread is not small:
 | Summarize a doc | GPT frontier | A mini/flash model | **~10×** |
 | Actually-hard debugging | ...the big one. Correctly. | The big one | 1× — and ModelScout will say so |
 
-ModelScout is a skill for your AI coding agent that answers one question
-correctly, every time you ask it:
+ModelScout is an open [Agent Skills](https://agentskills.io) plugin that
+answers one question on every task, before you even ask:
 
 > *"Which model should I use for this?"*
+
+**Works in:** Claude Code · Codex · the ChatGPT desktop app · Gemini CLI ·
+claude.ai. It's one package, installed with each host's own plugin command.
 
 ## Why it's different from "just ask the AI"
 
@@ -117,6 +120,43 @@ reports back, and redone if it's weak. Destructive or outward-facing steps
 (push, deploy, delete, send) and 1–2 step jobs stay on your main session.
 Follow-ups like "yes" or "continue" never trigger a card.
 
+## How much does it save? Measured, not guessed
+
+Type `modelscout: savings` (or ask *"how much has ModelScout saved me?"*).
+The calculator reads your Claude Code session logs and measures every task
+ModelScout routed. It reports:
+- **Tokens** handled by the lighter model, counted once per API message
+- **Percentage saved** versus running the same tokens on your main model.
+  It's cost-weighted, so cheap cache reads don't inflate it. For subscribers,
+  this is the share of usage-limit quota freed.
+- **Main-model budget freed,** in tokens
+- **Time:** measured subagent run time. No invented speed-up claims.
+
+Example output (illustrative numbers):
+
+```text
+🔭 ModelScout savings — last 30 days
+Routed down to lighter models: 12 task(s), 3.1M tokens, 41.0 min of subagent time
+  Saved: 76% of what the main model would have used (≈ $4.20 at API prices)
+  Main-model budget freed: ≈ 2.4M tokens' worth
+```
+
+**A real sample.** The author's machine over 120 days, counting every
+lighter-model subagent (`savings.py --days 120 --all`). Routing was done by
+hand or by other tools before v0.3.0 added the ModelScout marker.
+
+| Measured over 120 days (n = 68 routed tasks) | Value |
+|---|---|
+| Tokens handled by lighter models | 47.6M |
+| Saved vs. the main model | **76%** ($53 at API prices) |
+| Main-model budget freed | ≈ 36.4M tokens |
+| Routes | Sonnet→Haiku ×26 · Fable→Sonnet ×28 · Fable→Haiku ×9 · Opus→Haiku ×1 |
+
+Assumes the main model would have used the same number of tokens. Prices come
+from the models.dev catalog, falling back to the newest same-family price,
+and the report names every price it used. One person's workload is an
+example, not a benchmark.
+
 ## How to invoke it — prompts that work
 
 **Most of the time you don't.** The card appears on every new task by itself.
@@ -151,9 +191,8 @@ edits are needed: the hooks register themselves. To update later, run
 <details><summary>Manual install (no plugin system)</summary>
 
 ```bash
-git clone https://github.com/iknowterry/modelscout
-cp -r modelscout/skills/modelscout ~/.claude/skills/
-cp -r modelscout/core modelscout/hooks modelscout/scripts ~/.claude/skills/modelscout/
+git clone https://github.com/iknowterry/modelscout ~/modelscout
+cp -r ~/modelscout/plugins/modelscout/skills/modelscout ~/.claude/skills/
 ```
 
 Then add the per-task hook to `~/.claude/settings.json`:
@@ -163,7 +202,7 @@ Then add the per-task hook to `~/.claude/settings.json`:
   "hooks": {
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command",
-          "command": "bash \"$HOME/.claude/skills/modelscout/hooks/proactive-check.sh\"" } ] }
+          "command": "bash \"$HOME/modelscout/plugins/modelscout/hooks/proactive-check.sh\" --host=claude" } ] }
     ]
   }
 }
@@ -182,16 +221,44 @@ Advisory-only (chat can't run the discovery script), but the same brain:
 
 (Or build the zip yourself: `cd adapters/claude-ai && zip -r modelscout-claude-ai.zip modelscout`)
 
-### Codex CLI / Gemini CLI
+### Codex CLI and the ChatGPT desktop app
 
-Copy `core/` to `~/.modelscout/core/`, then paste the snippet from
-[`adapters/codex/AGENTS.md`](adapters/codex/AGENTS.md) or
-[`adapters/gemini/GEMINI.md`](adapters/gemini/GEMINI.md) into your context file.
+```bash
+codex plugin marketplace add iknowterry/modelscout
+```
 
-### ChatGPT (Custom GPT)
+```bash
+codex plugin add modelscout@modelscout
+```
 
-Follow [`adapters/chatgpt/INSTRUCTIONS.md`](adapters/chatgpt/INSTRUCTIONS.md) —
-upload `heuristics.md` as knowledge, paste the instructions. Advisory-only.
+Start a new session. The skill gives you the card and the advice right away.
+For the per-task hook, run `/hooks` once in Codex and trust ModelScout's hooks;
+Codex skips plugin hooks until you do. In Codex, ModelScout tells you the exact
+`/model` command to run. It only routes automatically where the host lets it
+start a subagent on a chosen model. (Plugins that contain hooks can't be
+listed in OpenAI's public plugin directory, so install from this repo.)
+
+### Gemini CLI *(untested: Gemini CLI isn't on the author's machine)*
+
+```bash
+gemini skills install https://github.com/iknowterry/modelscout.git --path plugins/modelscout/skills/modelscout
+```
+
+That installs the skill. The hook script also understands Gemini's
+`BeforeAgent` event if you add it to `~/.gemini/settings.json`.
+
+### Any other Agent Skills host
+
+Copy `plugins/modelscout/skills/modelscout/` into the host's skills folder.
+For example, `~/.agents/skills/` is read by both Codex and Gemini CLI. The
+skill is self-contained: heuristics, discovery, settings and savings scripts
+are all inside it.
+
+### ChatGPT web (Custom GPT)
+
+Follow [`adapters/chatgpt/INSTRUCTIONS.md`](adapters/chatgpt/INSTRUCTIONS.md):
+upload `heuristics.md` as knowledge and paste the instructions. This route is
+advisory-only.
 
 ### Your own agent / router
 
@@ -223,13 +290,14 @@ upload `heuristics.md` as knowledge, paste the instructions. Advisory-only.
 
 ## How it works
 
-Three parts, deliberately separated so every surface shares one brain:
+Everything lives in one portable plugin, [`plugins/modelscout/`](plugins/modelscout), so every host shares one brain:
 
 | Part | What it is |
 |---|---|
-| [`core/discover-models.sh`](core/discover-models.sh) | Builds the inventory from your keys (read-only "list models" calls — costs $0, sends no prompts) + caches the models.dev catalog for 7 days |
-| [`core/heuristics.md`](core/heuristics.md) | Host-agnostic brain: task tiers T1–T4, capability vetoes, price-band mapping, honesty rules, subscription fallback |
-| `skills/`, `adapters/` | Thin per-host wrappers — tune the heuristics once, every surface improves |
+| [`scripts/discover-models.sh`](plugins/modelscout/skills/modelscout/scripts/discover-models.sh) | Builds the inventory from your keys (read-only "list models" calls — costs $0, sends no prompts) + caches the models.dev catalog for 7 days |
+| [`references/heuristics.md`](plugins/modelscout/skills/modelscout/references/heuristics.md) | Host-agnostic brain: task tiers T1–T4, capability vetoes, price-band mapping, honesty rules, subscription fallback |
+| [`scripts/prefs.py`](plugins/modelscout/skills/modelscout/scripts/prefs.py), [`scripts/savings.py`](plugins/modelscout/skills/modelscout/scripts/savings.py) | Your switch/ask/stay defaults, and the measured savings report |
+| [`hooks/`](plugins/modelscout/hooks) | One prompt hook that speaks Claude Code, Codex and Gemini CLI, and shows the per-task card |
 
 **Do I need API keys?** No. Keys give the most precise inventory (one read-only
 listing call, never a prompt, $0). Without keys: inside Claude Code the Claude
@@ -247,12 +315,12 @@ subscriptions in `~/.claude/modelscout-profile.json`.
 4. Honesty: bias **up**-tier when uncertain; never recommend a model that isn't
    in your inventory; always explain the tier so you learn the pattern.
 
-Full rules: [`core/heuristics.md`](core/heuristics.md).
+Full rules: [`heuristics.md`](plugins/modelscout/skills/modelscout/references/heuristics.md).
 
 ## Roadmap
 
-- [ ] **Savings report** — read session transcripts, show "you saved $X (or Y%
-  of your quota) this week by tier-right routing"
+- [x] **Savings report:** `modelscout: savings` (v0.3.0)
+- [ ] Savings report for Codex and Gemini session logs
 - [ ] Azure OpenAI / Bedrock / Vertex key detection
 - [ ] `modelscout` CLI wrapper (`npx modelscout` → prints inventory + advice)
 - [ ] Optional Action endpoint for the Custom GPT adapter

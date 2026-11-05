@@ -11,7 +11,16 @@
 - `scripts/prefs.py`: the single writer of the profile; keeps other fields like declared subscriptions
 - Current-model detection from the session transcript, including `/model` changes made mid-session
 
+- Measured savings report: `modelscout: savings` or `scripts/savings.py` reads Claude Code transcripts and reports tokens on lighter models, the cost-weighted % saved (= share of quota freed for subscribers), main-model budget freed, and measured run time. API messages are deduplicated, and every price used is named
+- Cross-host packaging based on the open Agent Skills standard:
+  - Codex CLI and the ChatGPT desktop app install with `codex plugin marketplace add iknowterry/modelscout` (root `plugin.json` plus `.agents/plugins/marketplace.json`)
+  - Gemini CLI gets `gemini-extension.json` and `BeforeAgent` hook support
+- Host-aware hook output (JSON `additionalContext` everywhere); Codex and Gemini get price-band model picks from the user's inventory or the catalog
+
 ### Changed
+- Repo layout: the plugin now lives in `plugins/modelscout/`, and the skill is self-contained (`references/heuristics.md`, `scripts/`), so a standalone skill install works on any host
+- SKILL.md follows the agentskills.io spec (license, compatibility, metadata) and is written by host capability rather than for Claude only
+- Removed the paste-in Codex and Gemini adapters; native plugin and skill installs replace them
 - The hook now injects a compact block on every new task prompt instead of once per session, so ModelScout stays active in long sessions and after compaction
 - `modelscout: …` settings commands are handled inside the hook: saved instantly, with no model turn
 - Short follow-ups ("yes", "continue", "ต่อเลย") never trigger a card

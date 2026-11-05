@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/session-start.sh\"" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/proactive-check.sh\" --host=claude" } ] }
+    ],
+    "BeforeAgent": [
+      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/proactive-check.sh\" --host=gemini" } ] }
+    ]
+  }
+}

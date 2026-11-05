@@ -1,0 +1,20 @@
+{
+  "name": "modelscout",
+  "interface": {
+    "displayName": "ModelScout"
+  },
+  "plugins": [
+    {
+      "name": "modelscout",
+      "source": {
+        "source": "local",
+        "path": "./plugins/modelscout"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

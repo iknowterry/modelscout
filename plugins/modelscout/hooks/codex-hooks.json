@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "bash \"${PLUGIN_ROOT}/hooks/session-start.sh\"" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "bash \"${PLUGIN_ROOT}/hooks/proactive-check.sh\" --host=codex" } ] }
+    ]
+  }
+}

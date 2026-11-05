@@ -4,8 +4,8 @@ description: View and change ModelScout's defaults — auto-route, ask, or stay,
 
 # ModelScout preferences
 
-1. Find the prefs script: `${CLAUDE_PLUGIN_ROOT}/scripts/prefs.py`. If that path
-   doesn't exist, run `find ~/.claude/plugins -path '*modelscout*/scripts/prefs.py' | head -1`.
+1. Find the prefs script: `${CLAUDE_PLUGIN_ROOT}/skills/modelscout/scripts/prefs.py`. If that path
+   doesn't exist, run `find ~/.claude/plugins -path "*modelscout*/scripts/prefs.py" | head -1`.
    Call it PREFS below.
 2. Run `python3 PREFS show` and show the user the result as a short table:
    tier, what it means (T1 mechanical, T2 standard, T3 hard reasoning,
