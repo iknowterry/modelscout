@@ -20,39 +20,51 @@ to buy coffee. Whatever you pay with, the spread is not small:
 | Summarize a doc | GPT frontier | A mini/flash model | **~10×** |
 | Actually-hard debugging | ...the big one. Correctly. | The big one | 1× — and ModelScout will say so |
 
-ModelScout is an open [Agent Skills](https://agentskills.io) plugin that
-answers one question on every task, before you even ask:
+**ModelScout knows which models *you* actually have, picks the right one for
+every task, and proves what that saved, across every agent you use.**
+
+It's an open [Agent Skills](https://agentskills.io) plugin. On every task, it
+answers the question you'd otherwise guess at:
 
 > *"Which model should I use for this?"*
+
+Then it acts on the answer: it hands the task to a subagent on that model and
+checks the result.
 
 **Works in:** Claude Code · Codex · the ChatGPT desktop app · Gemini CLI ·
 Hermes Agent · claude.ai. It's one package, installed with each host's own plugin command.
 
-## Why it's different from "just ask the AI"
+## Why it's different
 
-Ask a chatbot which model to use and it guesses from stale training data —
-models you don't have, prices that changed, lineups from last year. ModelScout
-doesn't guess:
+Model routers exist. Most silently swap the model on every request, from a
+fixed list someone configured. ModelScout is built on three things they don't
+combine:
 
-- 🔍 **It scouts what YOU actually have.** One read-only call per provider
-  (Anthropic, OpenAI, Gemini, OpenRouter) lists exactly the models *your* keys
-  or subscriptions can access. It will never recommend a model you can't use.
-- 💰 **Live pricing, not vibes.** Capabilities, context windows, and per-token
-  prices come from the open [models.dev](https://models.dev) catalog — so
-  recommendations stay correct as models churn, without updating this repo.
-- 🎓 **It teaches you the pattern.** Every recommendation names the task tier
-  and the reason — "this is a T1 mechanical edit, no reasoning needed, so Haiku
-  at $1/$5 clears it." After a few weeks you'll tier tasks yourself without
-  asking. A tool that makes itself unnecessary is a tool you can trust.
-- ⏳ **Your rate limits last longer.** For subscribers this is the killer
-  benefit: routing mechanical work to light models preserves your frontier-model
-  quota for the work that actually needs it — same subscription, more usable
-  hours per day, fewer limit walls.
-- 🚦 **It knows when NOT to cheap out.** When uncertain, it routes *up* — a
-  failed cheap run costs more than the right model the first time.
-- 🧭 **Bonus (Claude Code):** it also suggests the right session mode — plan
-  mode for architecture, accept-edits for mechanical work — so both your tokens
-  *and* your attention go where they matter.
+- 🔍 **Grounded in what you actually have.** One read-only call per provider
+  (Anthropic, OpenAI, Gemini, OpenRouter), or your declared subscriptions,
+  defines exactly which models are available to you. Prices and capabilities
+  come live from the open [models.dev](https://models.dev) catalog. New models
+  show up with no update, and it never recommends a model you can't use.
+- 📊 **Proof, not estimates.** `modelscout: savings` measures the *subagents'
+  own* token usage from real logs. Routers that only read the main session
+  miss exactly the tokens that moved. It's cost-weighted, and it names the
+  price behind every number. For subscribers, the % saved is quota freed.
+- 🌐 **One brain, every agent.** The same skill, settings and card work in
+  Claude Code, Codex, ChatGPT desktop, Gemini CLI, Hermes and claude.ai. Other
+  routers each serve a single host.
+
+And on every task:
+
+- 🎓 **It teaches you the pattern.** The card names the tier and the reason:
+  "T1 mechanical edit, no reasoning needed, so Haiku clears it." After a few
+  weeks you'll tier tasks yourself.
+- ⚡ **It acts, then checks.** It starts a subagent on the best-fit model, and
+  your main model verifies the result before reporting.
+- 🚦 **It knows when NOT to cheap out.** It routes *up* for hard work, and
+  when unsure it biases up. A failed cheap run costs more than the right model
+  the first time.
+- ⏳ **Your rate limits last longer.** Mechanical work on light models leaves
+  your frontier-model quota for the work that needs it.
 
 **No API keys needed for subscribers.** Declare what you have once ("Claude
 Max + ChatGPT Plus") and ModelScout advises from that — savings framed in what
@@ -128,8 +140,8 @@ Follow-ups like "yes" or "continue" never trigger a card.
 ## How much does it save? Measured, not guessed
 
 Type `modelscout: savings` (or ask *"how much has ModelScout saved me?"*).
-The calculator reads your Claude Code session logs and measures every task
-ModelScout routed. It reports:
+The calculator reads your Claude Code session logs and Hermes Agent's session
+database (read-only) and measures every task ModelScout routed. It reports:
 - **Tokens** handled by the lighter model, counted once per API message
 - **Percentage saved** versus running the same tokens on your main model.
   It's cost-weighted, so cheap cache reads don't inflate it. For subscribers,
@@ -346,6 +358,7 @@ Full rules: [`heuristics.md`](plugins/modelscout/skills/modelscout/references/he
 ## Roadmap
 
 - [x] **Savings report:** `modelscout: savings` (v0.3.0)
+- [x] Savings report for Hermes Agent sessions (v0.3.4)
 - [ ] Savings report for Codex and Gemini session logs
 - [ ] Azure OpenAI / Bedrock / Vertex key detection
 - [ ] `modelscout` CLI wrapper (`npx modelscout` → prints inventory + advice)

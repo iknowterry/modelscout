@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""ModelScout savings report — measured from Claude Code transcripts.
+"""ModelScout savings report — measured from real agent logs.
 
-For every subagent ModelScout routed (Agent description starting with
-"ModelScout:"), it sums the subagent's real token usage (deduplicated per API
-message), prices it on the model that actually ran, and compares it with what
-the same tokens would have cost on the main session's model.
+Sources: Claude Code transcripts (~/.claude/projects) and Hermes Agent's session
+database (~/.hermes/state.db, read-only). For every subagent ModelScout routed
+(task description starting with "ModelScout:"), it sums the subagent's real
+token usage, prices it on the model that actually ran, and compares it with
+what the same tokens would have cost on the main session's model.
 
 Usage:
   savings.py                 # text report, last 30 days
@@ -25,6 +26,7 @@ from collections import defaultdict
 from pathlib import Path
 
 PROJECTS = Path.home() / ".claude" / "projects"
+HERMES_DB = Path.home() / ".hermes" / "state.db"
 CATALOG = Path.home() / ".claude" / "model-catalog.json"
 MARKER = re.compile(r"^\s*(⚡\s*)?modelscout\b", re.I)
 FAMILY_RANK = {"haiku": 1, "sonnet": 2, "opus": 3, "fable": 4, "mythos": 4}
@@ -40,18 +42,23 @@ def family(model):
 
 class Prices:
     def __init__(self):
-        self.models = {}
+        self.models, self.all = {}, {}
         try:
             cat = json.loads(CATALOG.read_text())
             self.models = cat.get("anthropic", {}).get("models", {}) or {}
+            for prov in cat.values():
+                for k, v in ((prov or {}).get("models") or {}).items():
+                    if isinstance(v, dict) and v.get("cost"):
+                        self.all.setdefault(k, v)
         except Exception:
             pass
 
     def lookup(self, model):
         """Return (price dict per 1M tokens, source label)."""
-        m = re.sub(r"-\d{8}$", "", model or "")
-        for key in (model, m):
-            cost = (self.models.get(key) or {}).get("cost")
+        bare = (model or "").split("/")[-1]
+        m = re.sub(r"-\d{8}$", "", bare)
+        for key in (model, bare, m):
+            cost = (self.models.get(key) or self.all.get(key) or {}).get("cost")
             if cost:
                 return cost, key
         fam = family(model)
@@ -63,6 +70,10 @@ class Prices:
         fallback = {"haiku": (1, 5), "sonnet": (3, 15), "opus": (5, 25), "fable": (10, 50), "mythos": (10, 50)}
         i, o = fallback.get(fam, (5, 25))
         return {"input": i, "output": o}, f"built-in {fam or 'default'} estimate"
+
+    def rank(self, model):
+        """Comparable price level: output price per 1M tokens."""
+        return self.lookup(model)[0].get("output", 0) or 0
 
     def cost(self, model, u):
         p, _ = self.lookup(model)
@@ -149,14 +160,53 @@ def scan(days, include_all):
             if not usage or not main_model or not model:
                 continue
             routes.append({"description": desc, "main": main_model, "routed": model, "usage": usage,
-                           "ms": r.get("totalDurationMs") or log_ms, "session": tr.stem[:8]})
+                           "ms": r.get("totalDurationMs") or log_ms, "session": tr.stem[:8],
+                           "host": "claude-code"})
+    return routes
+
+
+def scan_hermes(days, include_all, db=HERMES_DB):
+    """Delegated child sessions from Hermes's state.db (read-only)."""
+    import sqlite3
+    if not Path(db).exists():
+        return []
+    cutoff = time.time() - days * 86400
+    routes = []
+    try:
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        rows = con.execute(
+            "SELECT c.id, c.model, p.model, c.started_at, c.ended_at, c.title, "
+            "c.input_tokens, c.output_tokens, c.cache_read_tokens, c.cache_write_tokens "
+            "FROM sessions c JOIN sessions p ON p.id = c.parent_session_id "
+            "WHERE c.started_at >= ?", (cutoff,)).fetchall()
+        for sid, cmodel, pmodel, start, end, title, ti, to, tcr, tcw in rows:
+            first = con.execute("SELECT content FROM messages WHERE session_id = ? AND role = 'user' "
+                                "ORDER BY rowid LIMIT 1", (sid,)).fetchone()
+            desc = title or (first[0] if first and isinstance(first[0], str) else "")
+            if not include_all and not (MARKER.match(title or "") or MARKER.match(desc or "")):
+                continue
+            usage_rows = con.execute(
+                "SELECT model, SUM(input_tokens), SUM(output_tokens), SUM(cache_read_tokens), "
+                "SUM(cache_write_tokens) FROM session_model_usage WHERE session_id = ? GROUP BY model",
+                (sid,)).fetchall() or [(cmodel, ti, to, tcr, tcw)]
+            for model, i, o, cr, cw in usage_rows:
+                if not model or not pmodel:
+                    continue
+                routes.append({"description": desc[:80], "main": pmodel, "routed": model,
+                               "usage": {"input": i or 0, "output": o or 0, "cache_read": cr or 0,
+                                         "cache_write": cw or 0},
+                               "ms": int(((end or start) - start) * 1000) if start else 0,
+                               "session": sid[:12], "host": "hermes"})
+        con.close()
+    except Exception:
+        return routes
     return routes
 
 
 def report(routes, prices):
     out = {"routes": len(routes), "down": defaultdict(float), "up": defaultdict(float), "prices": {}}
-    down = [r for r in routes if FAMILY_RANK.get(family(r["routed"]), 0) < FAMILY_RANK.get(family(r["main"]), 0)]
-    up = [r for r in routes if FAMILY_RANK.get(family(r["routed"]), 0) > FAMILY_RANK.get(family(r["main"]), 0)]
+    down = [r for r in routes if prices.rank(r["routed"]) < prices.rank(r["main"])]
+    up = [r for r in routes if prices.rank(r["routed"]) > prices.rank(r["main"])]
     for label, group in (("down", down), ("up", up)):
         acc = out[label]
         for r in group:
@@ -176,7 +226,8 @@ def report(routes, prices):
     d["main_equiv_tokens_saved"] = d["tokens"] * d["saved_pct"] / 100
     out["by_pair"] = defaultdict(int)
     for r in down + up:
-        out["by_pair"][f"{family(r['main'])} -> {family(r['routed'])}"] += 1
+        short = lambda m: family(m) or (m or "?").split("/")[-1]
+        out["by_pair"][f"{short(r['main'])} -> {short(r['routed'])}"] += 1
     out["same_tier_skipped"] = len(routes) - len(down) - len(up)
     return out
 
@@ -203,6 +254,8 @@ def render_text(o, days):
                      f"+${u['main_cost'] and (u['routed_cost'] - u['main_cost']):.2f} invested in a stronger model")
     if o["by_pair"]:
         lines.append("Routes: " + ", ".join(f"{k} ×{v}" for k, v in o["by_pair"].items()))
+    if o.get("hosts"):
+        lines.append("Sources: " + ", ".join(o["hosts"]))
     if o["same_tier_skipped"]:
         lines.append(f"({o['same_tier_skipped']} same-tier subagent(s) not counted)")
     lines.append("Prices: " + "; ".join(f"{m} → {src}" for m, src in o["prices"].items()) if o["prices"] else
@@ -231,7 +284,9 @@ def main():
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--markdown", action="store_true")
     a = ap.parse_args()
-    o = report(scan(a.days, a.all), Prices())
+    routes = scan(a.days, a.all) + scan_hermes(a.days, a.all)
+    o = report(routes, Prices())
+    o["hosts"] = sorted({r.get("host", "claude-code") for r in routes})
     if a.json:
         print(json.dumps(o, indent=2, default=dict))
     elif a.markdown:

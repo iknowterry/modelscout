@@ -1,11 +1,11 @@
 ---
 name: modelscout
-description: Picks the right AI model for each task (Claude, OpenAI/ChatGPT, Gemini, OpenRouter), grounded in the models the user's keys or subscriptions can actually access, with live pricing. Shows a short card per task (tier, best-fit model, why), then routes the work to that model or subagent, asks, or stays, per the user's defaults. Use when the user asks "which model should I use", "is this model overkill", "what's the cheapest model that can do X", wants to cut LLM cost or save usage-limit quota, asks what models they have, asks how much ModelScout saved, mentions ModelScout by name, or before delegating subtasks to subagents where a lighter model may suffice.
+description: Knows which AI models the user actually has (keys and subscriptions, live pricing), picks the right one for each task, and proves what that saved. Shows a short card per task (tier, best-fit model, why), then routes the work to that model or subagent, asks, or stays, per the user's defaults. Use when the user asks "which model should I use", "is this model overkill", "what's the cheapest model that can do X", wants to cut LLM cost or save usage-limit quota, asks what models they have, asks how much ModelScout saved, mentions ModelScout by name, or before delegating subtasks to subagents where a lighter model may suffice.
 license: MIT
 compatibility: Works in any Agent Skills host (Claude Code, Codex, ChatGPT, Gemini CLI, Hermes Agent, claude.ai). Scripts need python3 and bash; auto-routing needs a host that can start subagents on a chosen model.
 metadata:
   author: iKnowTerry
-  version: "0.3.3"
+  version: "0.3.4"
   homepage: https://github.com/iknowterry/modelscout
 ---
 
@@ -90,9 +90,10 @@ injected. Then act according to what the host can do:
 
 When the user asks how much ModelScout saved, run `python3 scripts/savings.py`
 (add `--days 7` to change the window, `--markdown` for a table). It reads
-Claude Code transcripts and measures every subagent whose description starts
-with `ModelScout:`:
-- tokens handled by the lighter model, deduplicated per API message
+Claude Code transcripts and Hermes Agent's session database (read-only), and
+measures every subagent whose task description starts with `ModelScout:`.
+On other hosts, start the delegated task's goal with `ModelScout:` too. It reports:
+- tokens handled by the lighter model, counted from the subagent's own log
 - the cost-weighted percentage saved versus the main model, which for
   subscribers is the share of usage-limit quota freed
 - measured run time

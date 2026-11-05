@@ -5,14 +5,14 @@
     "email": "pruthisith@gmail.com"
   },
   "metadata": {
-    "description": "ModelScout: the right AI model for every task. It shows which model fits and why, then routes the work to it."
+    "description": "ModelScout: the right model for every task, grounded in what you actually have, with measured savings."
   },
   "plugins": [
     {
       "name": "modelscout",
       "source": "./plugins/modelscout",
-      "description": "Shows which AI model fits each task and why, then routes it to a best-fit subagent (or asks, or stays, per your defaults) — grounded in the models your keys and subscriptions can actually access, with live pricing. Saves API users money and saves subscribers tokens and rate-limit quota.",
-      "version": "0.3.3",
+      "description": "Knows which AI models you actually have (keys and subscriptions, live pricing), picks the right one for every task, routes it to a best-fit subagent, and proves what that saved. One open Agent Skills plugin for Claude Code, Codex, ChatGPT, Gemini CLI and Hermes.",
+      "version": "0.3.4",
       "author": {
         "name": "iKnowTerry"
       },

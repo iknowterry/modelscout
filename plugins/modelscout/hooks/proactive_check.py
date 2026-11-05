@@ -165,8 +165,10 @@ stay → do it here. Card line 3: "Staying on <current> (your <Tier> default)"."
 
 RULES_OTHER = {
     "switch": """\
-switch → if this host lets you start a subagent on a chosen model, delegate the
-  task to the best-fit model with a self-contained brief and verify the result.
+switch → if this host lets you start a subagent on a chosen model (Hermes:
+  delegate_task with a model_map route), delegate the task to the best-fit model
+  with a self-contained brief whose goal starts with "ModelScout: " (savings
+  tracking reads it), and verify the result.
   Otherwise give the exact command to switch (e.g. "/model <id>") on card line 3
   and continue on the current model without waiting.""",
     "ask": """\

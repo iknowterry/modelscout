@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.4] - 2026-11-06
+
+### Added
+- Savings report reads Hermes Agent's session database (`~/.hermes/state.db`, read-only): delegated child sessions whose goal starts with `ModelScout:`, with per-model token usage and run time
+- Savings are now compared by price, not by Claude model family, so OpenAI, Gemini and mixed-provider routes (e.g. GPT → Claude) are priced correctly from the models.dev catalog
+
+### Changed
+- New positioning everywhere (README, skill, manifests): ModelScout knows which models you actually have, picks the right one for every task, and proves what that saved, across every agent
+- On non-Claude hosts (Hermes `delegate_task`), the routing rule tags delegated goals with `ModelScout:` so savings can be measured
+
 ## [0.3.3] - 2026-11-06
 
 ### Added
