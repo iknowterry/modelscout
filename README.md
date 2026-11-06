@@ -1,3 +1,5 @@
+<p align="center"><img src="plugins/modelscout/assets/icon.svg" width="112" alt="ModelScout logo"></p>
+
 # ModelScout 🔭
 
 **Stop paying frontier-model prices for find-and-replace work.**

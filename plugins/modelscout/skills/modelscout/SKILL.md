@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works in any Agent Skills host (Claude Code, Codex, ChatGPT, Gemini CLI, Hermes Agent, claude.ai). Scripts need python3 and bash; auto-routing needs a host that can start subagents on a chosen model.
 metadata:
   author: iKnowTerry
-  version: "0.3.5"
+  version: "0.3.6"
   homepage: https://github.com/iknowterry/modelscout
 ---
 

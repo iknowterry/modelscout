@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.6] - 2026-11-06
+
+### Added
+- Plugin icon (telescope with a sparkle on an indigo → violet → cyan gradient) in `plugins/modelscout/assets/`: `icon.svg`, `icon-dark.svg` and a 512×512 `icon.png`
+- Claude Code manifest: `icon`, `repository`, `documentationUrl` and `supportUrl`
+- Codex / ChatGPT plugin page: `logo`, `logoDark`, `composerIcon`, `brandColor`, `websiteURL` (it showed "Unavailable"), `developerName`, short and long descriptions, and three suggested prompts
+
 ## [0.3.5] - 2026-11-06
 
 ### Fixed
