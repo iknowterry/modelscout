@@ -47,6 +47,29 @@ FAMILIES = (("haiku", "Haiku", 1), ("sonnet", "Sonnet", 2), ("opus", "Opus", 3),
 TIER_MODEL = {"T1": "haiku", "T2": "sonnet", "T3": "opus", "T4": "fable (if available, else opus)"}
 
 
+ACK_LEAD = sorted(ACK, key=len, reverse=True)  # longest first: "go ahead" before "go"
+FOLLOWUP_MAX_CHARS = 30
+FOLLOWUP_MAX_WORDS = 3
+
+
+def ack_followup(p):
+    """True for a short reply that opens with an acknowledgement plus a brief
+    clause ("yes, test it", "ok, go on", "ได้เลย ทดสอบด้วย"). The rest after the
+    acknowledgement must be at most 3 words, so "sure, write a poem about cats"
+    still counts as a new task."""
+    if len(p) > FOLLOWUP_MAX_CHARS:
+        return False
+    for ack in ACK_LEAD:
+        if p.startswith(ack):
+            rest = p[len(ack):]
+            # whole-word match only: "no" must not match "node", "ไม่" not "ไม่ทำงาน"
+            if rest and not re.match(r"[\s,.!?;:~\-–—]", rest):
+                continue
+            rest = re.sub(r"^[\s,.!?;:~\-–—]+", "", rest)
+            return len(rest.split()) <= FOLLOWUP_MAX_WORDS
+    return False
+
+
 def is_trivial(prompt):
     p = re.sub(r"[\s!.?,~]+$", "", prompt.strip().lower())
     if not p or p.startswith("<") or p.startswith("/"):
@@ -55,6 +78,8 @@ def is_trivial(prompt):
         return True
     if T4.search(p) or T3.search(p) or T1.search(p):
         return False
+    if ack_followup(p):
+        return True
     return len(p) < 12 and not re.search(r"\b(fix|add|make|write|build|create)\b", p)
 
 

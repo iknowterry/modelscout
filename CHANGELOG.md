@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.5] - 2026-11-06
+
+### Fixed
+- Short follow-ups that open with an acknowledgement plus a brief clause ("yes, test it", "ok, go on", "no, use postgres instead", "ได้เลย ทดสอบด้วย") no longer get a routing card. A prompt counts as a follow-up when it is 30 characters or less and has at most 3 words after the acknowledgement; task keywords still win, and "sure, write a poem about cats" still counts as a new task ([#1](https://github.com/iknowterry/modelscout/issues/1), reported by @Kanyarit)
+
+### Added
+- `tests/test_is_trivial.py`: regression cases for the follow-up filter (`python3 -m unittest discover tests`)
+
 ## [0.3.4] - 2026-11-06
 
 ### Added
