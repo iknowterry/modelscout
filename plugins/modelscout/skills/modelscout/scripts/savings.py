@@ -65,34 +65,72 @@ class Prices:
         except Exception:
             pass
 
-    def lookup(self, model):
-        """Return (price dict per 1M tokens, source label)."""
+    def _find(self, model):
+        """Return (price dict, tiers list, source label) for a model."""
         bare = (model or "").split("/")[-1]
         m = re.sub(r"-\d{8}$", "", bare)
         for key in (model, bare, m):
-            cost = (self.models.get(key) or self.all.get(key) or {}).get("cost")
-            if cost:
-                return cost, key
+            e = self.models.get(key) or self.all.get(key) or {}
+            if e.get("cost"):
+                return e["cost"], e.get("tiers") or e["cost"].get("tiers") or [], key
         fam = family(model)
-        same = [(v.get("release_date") or "", k, v["cost"]) for k, v in self.models.items()
+        same = [(v.get("release_date") or "", k, v) for k, v in self.models.items()
                 if fam and fam in k and v.get("cost")]
         if same:
-            _, k, cost = max(same)
-            return cost, f"{k} (newest {fam} in catalog)"
+            _, k, v = max(same, key=lambda t: t[:2])
+            return v["cost"], v.get("tiers") or v["cost"].get("tiers") or [], f"{k} (newest {fam} in catalog)"
         fallback = {"haiku": (1, 5), "sonnet": (3, 15), "opus": (5, 25), "fable": (10, 50), "mythos": (10, 50)}
         i, o = fallback.get(fam, (5, 25))
-        return {"input": i, "output": o}, f"built-in {fam or 'default'} estimate"
+        return {"input": i, "output": o}, [], f"built-in {fam or 'default'} estimate"
+
+    def lookup(self, model):
+        """Return (price dict per 1M tokens, source label)."""
+        p, _, label = self._find(model)
+        return p, label
+
+    def tiered(self, model):
+        return any(isinstance(t, dict) and (t.get("tier") or {}).get("size") for t in self._find(model)[1])
 
     def rank(self, model):
         """Comparable price level: output price per 1M tokens."""
         return self.lookup(model)[0].get("output", 0) or 0
 
-    def cost(self, model, u):
-        p, _ = self.lookup(model)
+    @staticmethod
+    def _price(p, u):
         pin = p.get("input", 0)
         return (u["input"] * pin + u["output"] * p.get("output", 0)
                 + u["cache_write"] * p.get("cache_write", pin * 1.25)
                 + u["cache_read"] * p.get("cache_read", pin * 0.1)) / 1e6
+
+    def cost(self, model, u):
+        """Base-price cost of one usage total (no tiers)."""
+        return self._price(self.lookup(model)[0], u)
+
+    def call_cost(self, model, u):
+        """Cost of ONE API request: the highest context tier its prompt size exceeds applies."""
+        p, tiers, _ = self._find(model)
+        prompt = u.get("input", 0) + u.get("cache_read", 0) + u.get("cache_write", 0)
+        best, size = None, -1
+        for t in tiers:
+            try:
+                n = (t.get("tier") or {}).get("size")
+                if (t.get("tier") or {}).get("type", "context") == "context" and n is not None and prompt > n > size:
+                    best, size = t, n
+            except Exception:
+                continue
+        if best:
+            p = {**p, **{k: v for k, v in best.items() if k in ("input", "output", "cache_read", "cache_write")}}
+            if "input" in best:  # cache prices the base lacks derive from the tier's own input
+                for k, f in (("cache_write", 1.25), ("cache_read", 0.1)):
+                    if k not in p:
+                        p[k] = best["input"] * f
+        return self._price(p, u)
+
+    def route_cost(self, model, r):
+        """A route's cost: per request when its calls are known, else base pricing on the total."""
+        if r.get("calls"):
+            return sum(self.call_cost(model, c) for c in r["calls"])
+        return self.cost(model, r["usage"])
 
 
 def _ts(value):
@@ -103,8 +141,9 @@ def _ts(value):
         return None
 
 
-def subagent_usage(path):
-    """Token usage (deduplicated per API message), model, and wall time from a subagent log."""
+def subagent_usage(path, calls=None):
+    """Token usage (deduplicated per API message), model, and wall time from a subagent log.
+    If `calls` is a list, each message's own usage dict is appended to it (for per-request tiers)."""
     seen, u = set(), defaultdict(int)
     model, first, last = None, None, None
     try:
@@ -127,6 +166,10 @@ def subagent_usage(path):
             u["output"] += us.get("output_tokens", 0) or 0
             u["cache_write"] += us.get("cache_creation_input_tokens", 0) or 0
             u["cache_read"] += us.get("cache_read_input_tokens", 0) or 0
+            if calls is not None:
+                calls.append({"input": us.get("input_tokens", 0) or 0, "output": us.get("output_tokens", 0) or 0,
+                              "cache_write": us.get("cache_creation_input_tokens", 0) or 0,
+                              "cache_read": us.get("cache_read_input_tokens", 0) or 0})
     except Exception:
         return None, None, 0
     ms = int((last - first) * 1000) if first and last else 0
@@ -167,13 +210,14 @@ def scan(days, include_all):
             if not include_all and not MARKER.match(desc or ""):
                 continue
             sub = tr.parent / tr.stem / "subagents" / f"agent-{r['agentId']}.jsonl"
-            model, usage, log_ms = subagent_usage(sub)
+            calls = []
+            model, usage, log_ms = subagent_usage(sub, calls)
             model = r.get("resolvedModel") or model
             if not usage or not main_model or not model:
                 continue
             routes.append({"description": desc, "main": main_model, "routed": model, "usage": usage,
                            "ms": r.get("totalDurationMs") or log_ms, "session": tr.stem[:8],
-                           "host": "claude-code"})
+                           "host": "claude-code", "calls": calls})
     return routes
 
 
@@ -229,11 +273,12 @@ def report(routes, prices):
             acc["tasks"] += 1
             acc["tokens"] += sum(u.values())
             acc["output_tokens"] += u["output"]
-            acc["routed_cost"] += prices.cost(r["routed"], u)
-            acc["main_cost"] += prices.cost(r["main"], u)
+            acc["routed_cost"] += prices.route_cost(r["routed"], r)
+            acc["main_cost"] += prices.route_cost(r["main"], r)
             acc["seconds"] += r["ms"] / 1000
             for m in (r["routed"], r["main"]):
                 out["prices"][m] = prices.lookup(m)[1]
+    out["tiered"] = any(prices.tiered(m) for m in out["prices"])
     d = out["down"]
     d["saved_cost"] = d["main_cost"] - d["routed_cost"]
     d["saved_pct"] = 100 * d["saved_cost"] / d["main_cost"] if d["main_cost"] else 0.0
@@ -276,7 +321,8 @@ def render_text(o, days):
     lines.append("Prices: " + "; ".join(f"{m} → {src}" for m, src in o["prices"].items()) if o["prices"] else
                  "No routed subagents found yet.")
     lines.append("Assumes the main model would have used the same tokens. Subscribers: the % is the share "
-                 "of usage-limit quota freed.")
+                 "of usage-limit quota freed."
+                 + (" Context-tiered prices applied per request for Claude Code subagents." if o.get("tiered") else ""))
     return "\n".join(lines)
 
 

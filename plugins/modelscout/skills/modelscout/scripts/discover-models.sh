@@ -10,6 +10,7 @@ set -uo pipefail
 CLAUDE_DIR="${HOME}/.claude"
 CATALOG="${CLAUDE_DIR}/model-catalog.json"
 INVENTORY="${CLAUDE_DIR}/model-inventory.json"
+umask 077  # temp files (header files holding keys) are owner-only
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -18,39 +19,45 @@ mkdir -p "$CLAUDE_DIR"
 # --- 1. models.dev catalog (pricing, limits, capabilities). Cached 7 days. ---
 if [ "${1:-}" = "--refresh-catalog" ] || [ ! -s "$CATALOG" ] || [ -n "$(find "$CATALOG" -mtime +7 2>/dev/null)" ]; then
   echo "Fetching models.dev catalog..." >&2
-  if curl -fsS --max-time 60 https://models.dev/api.json -o "${TMP}/catalog.json"; then
-    mv "${TMP}/catalog.json" "$CATALOG"
-  else
-    echo "warn: models.dev fetch failed; continuing with cached/absent catalog" >&2
-  fi
+  # catalog.py validates the JSON and writes atomically; its stdout goes to stderr to keep ours clean.
+  python3 "$(dirname "$0")/catalog.py" refresh >&2 \
+    || echo "warn: models.dev refresh failed; continuing with the cached or absent catalog" >&2
 fi
+
+# Write a secret header to a file with the printf builtin (never appears in the process
+# list), so curl can read it via -H @file instead of a visible command-line argument.
+hdr() { printf '%s: %s\n' "$2" "$3" > "${TMP}/$1.hdr"; }
 
 # --- 2. live model lists from each provider that has a key configured ---
 if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  hdr anthropic x-api-key "$ANTHROPIC_API_KEY"
   curl -fsS --max-time 30 "https://api.anthropic.com/v1/models?limit=1000" \
-    -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+    -H @"${TMP}/anthropic.hdr" \
     -H "anthropic-version: 2023-06-01" \
     -o "${TMP}/anthropic.json" || echo "warn: anthropic /v1/models failed" >&2
 fi
 
 if [ -n "${OPENAI_API_KEY:-}" ]; then
+  hdr openai Authorization "Bearer ${OPENAI_API_KEY}"
   curl -fsS --max-time 30 "https://api.openai.com/v1/models" \
-    -H "Authorization: Bearer ${OPENAI_API_KEY}" \
+    -H @"${TMP}/openai.hdr" \
     -o "${TMP}/openai.json" || echo "warn: openai /v1/models failed" >&2
 fi
 
 GEMINI_KEY="${GEMINI_API_KEY:-${GOOGLE_API_KEY:-}}"
 if [ -n "$GEMINI_KEY" ]; then
+  hdr gemini x-goog-api-key "$GEMINI_KEY"
   curl -fsS --max-time 30 "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000" \
-    -H "x-goog-api-key: ${GEMINI_KEY}" \
+    -H @"${TMP}/gemini.hdr" \
     -o "${TMP}/gemini.json" || echo "warn: gemini models list failed" >&2
 fi
 
 if [ -n "${OPENROUTER_API_KEY:-}" ]; then
+  hdr openrouter Authorization "Bearer ${OPENROUTER_API_KEY}"
   # OpenRouter's list is self-describing: pricing (per token) and context come
   # back inline, so these entries need no models.dev join.
   curl -fsS --max-time 30 "https://openrouter.ai/api/v1/models" \
-    -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
+    -H @"${TMP}/openrouter.hdr" \
     -o "${TMP}/openrouter.json" || echo "warn: openrouter /models failed" >&2
 fi
 

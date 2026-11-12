@@ -74,11 +74,11 @@ injected. Then act according to what the host can do:
 
 | Host capability | switch | ask | stay |
 |---|---|---|---|
-| Subagents with a model choice (Claude Code Agent tool `model: haiku\|sonnet\|opus`) | Delegate now. Start the Agent `description` with `ModelScout: <Tier> · ` (e.g. `ModelScout: T1 · rename user_id`) and write a self-contained brief. Verify the result before reporting; if it was weak, redo it and run `python3 scripts/outcomes.py weak`. | Popup (AskUserQuestion): run in subagent / stay / always subagent for this tier / always stay | Do it here |
+| Subagents with a model choice (Claude Code Agent tool `model: haiku\|sonnet\|opus\|fable`) | Delegate now. Start the Agent `description` with `ModelScout: <Tier> · ` (e.g. `ModelScout: T1 · rename user_id`) and write a self-contained brief. Verify the result before reporting; if it was weak, redo it and run `python3 scripts/outcomes.py weak`. | Popup (AskUserQuestion): run in subagent / stay / always subagent for this tier / always stay | Do it here |
 | Can only advise (Codex, Gemini CLI, Hermes without a delegation model map, chat apps) | Give the exact switch command or model-picker step and continue on the current model | Numbered choices in text, then wait for the answer | Do it here |
 
 - Routing works up-tier as well as down: a T3 task in an economy-model session
-  goes to a stronger model.
+  goes to a stronger model. A T4 task in an Opus session goes to a `fable` subagent when the host offers one.
 - Keep these on the main model: destructive or outward-facing steps (push,
   deploy, delete, send), 1–2 step jobs, and work that needs the user's answers
   mid-way.
@@ -103,12 +103,15 @@ subagent, including ones ModelScout didn't route.
 
 ### Outcomes
 
-ModelScout also records whether each routed subagent got the job done, in
+ModelScout also records how each routed subagent ended, in
 `~/.claude/modelscout-outcomes.jsonl`: tier, model and status only, no goal text.
-- Claude Code's Agent-tool hook and Hermes's `subagent_stop` hook record
-  completed and failed runs on their own.
-- When you had to redo a subagent's work, run `python3 scripts/outcomes.py weak`.
-  The user can say `modelscout: weak` for the same thing.
+- **ok:** the subagent finished. Claude Code's Agent and SubagentStop hooks and
+  Hermes's `subagent_stop` hook record this on their own, background agents included.
+- **weak:** the result was poor. This is the only status that counts against a
+  model. When you had to redo a subagent's work, run
+  `python3 scripts/outcomes.py weak`. The user can say `modelscout: weak`.
+- **error:** a usage limit, outage, denied permission or interrupt. Recorded,
+  but neutral: it says nothing about the model's quality.
 - `modelscout: outcomes` (or `python3 scripts/outcomes.py`) lists them per tier
   and model.
 

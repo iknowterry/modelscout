@@ -14,9 +14,9 @@ Judge the **task's requirement**, independent of which models exist:
 
 | Tier | Task looks like | Needs |
 |---|---|---|
-| **T1 Economy** | Rename/format/mechanical edits, extraction, classification, short summaries, boilerplate, simple single-file changes | Speed + low cost; no deep reasoning |
+| **T1 Mechanical** | Rename/format/mechanical edits, extraction, classification, short summaries, boilerplate, simple single-file changes | Speed + low cost; no deep reasoning |
 | **T2 Standard** | Typical feature work, multi-file edits with tests, general coding Q&A, documents, data analysis | Solid coding + tool use |
-| **T3 Advanced** | Gnarly debugging, architecture/design, large refactors, long-horizon agentic runs, hard math | Strong reasoning; cost secondary |
+| **T3 Hard reasoning** | Gnarly debugging, architecture/design, large refactors, long-horizon agentic runs, hard math | Strong reasoning; cost secondary |
 | **T4 Frontier** | Hardest problems, or a T3 attempt already failed | Maximum capability; cost last |
 
 Then apply **modifiers** that can veto a model regardless of tier:
@@ -34,8 +34,11 @@ Model names churn; prices don't lie. Using `cost_per_1m.output`:
 | Tier | Price band (output, USD/1M) | Typical families |
 |---|---|---|
 | T1 | ≤ $5 | Haiku-class, GPT-mini/nano-class, Gemini Flash-class |
-| T2 | $5–20 | Sonnet-class, GPT mainline, Gemini Pro-class |
-| T3/T4 | > $20 **and** `reasoning: true` | Opus-class, frontier reasoning models |
+| T2 | above $5, below $20 | Sonnet-class, GPT mainline, Gemini Pro-class |
+| T3 | ≥ $20: the newest model priced below the T4 pick | Opus-class reasoning models |
+| T4 | ≥ $20: the newest frontier model | Fable-class, frontier reasoning models |
+
+If only one model sits at $20 or above, it serves both T3 and T4. Check `reasoning: true` when the inventory has that field; the hook's quick picks use price and release date only.
 
 Prefer the enriched, current alias of a family over deprecated/dated snapshots.
 

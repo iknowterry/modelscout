@@ -12,14 +12,27 @@
   - `modelscout: catalog off` / `catalog on` turns the background refresh off or back on.
   - `modelscout: status` now shows the catalog's age.
 - Regression tests in `tests/test_catalog.py`
-- Outcome tracking, the first step toward routing that learns. ModelScout records whether each routed subagent got the job done, in `~/.claude/modelscout-outcomes.jsonl`. It stores the tier, model and status only, no goal text.
-  - Claude Code: a `PostToolUse` / `PostToolUseFailure` hook on the Agent tool. Background launches are skipped.
+- Outcome tracking, the first step toward routing that learns. ModelScout records how each routed subagent ended, in `~/.claude/modelscout-outcomes.jsonl`. It stores the tier, model and status only, no goal text.
+  - Three statuses: `ok` (finished), `weak` (poor result) and `error` (usage limit, outage, denied permission, interrupt). Only `weak` counts against a model; errors are neutral.
+  - Claude Code: hooks on the Agent tool and on `SubagentStop`. A background agent is recorded as pending at launch and resolved when it stops.
   - Hermes: a new `subagent_stop` hook; the child's model is read from `state.db`.
-  - `modelscout: weak` marks the last result as poor, and the main model runs `outcomes.py weak` when it had to redo the work. `modelscout: outcomes` lists the outcomes per tier and model.
+  - `modelscout: weak` marks the last finished result as poor, and the main model runs `outcomes.py weak` when it had to redo the work. `modelscout: outcomes` lists the outcomes per tier and model.
 - Routed subagents are now tagged with their tier: `ModelScout: T1 · <goal>`
 
 ### Fixed
 - The catalog fetch works on Python builds without root certificates (python.org builds on macOS): it falls back to `curl`
+- Picks: Opus-class models priced at exactly $20 were treated as T2, so T3 work went to the frontier model. $20 and above is now the frontier band: T4 is the newest model in it, and T3 is the newest one priced below T4
+- Picks: a provider whose current flagship is cheap (no $20+ model in the last 6 months) now uses that flagship for T3 and T4 instead of an older, pricier model
+- Picks: the filter for dated snapshots and `-pro-N` models never matched (a regex typo); it now works, and also drops moving `-latest` aliases
+- Picks: an inventory whose models have no prices now falls back to the catalog instead of giving no picks
+- Security: model ids from the catalog and inventory are checked before they reach the prompt block; anything that is not plain id text is dropped
+- Security: `discover-models.sh` passes API keys to `curl` through owner-only header files, not command-line arguments
+- `discover-models.sh` refreshes the catalog through `catalog.py`, which validates it, instead of overwriting it with whatever came back
+- The hook no longer reads typed text such as "Set model to haiku…" as a model switch, and prefers a model named in the hook payload over the transcript guess
+- Prompts that start with a file path or an HTML tag are no longer skipped as slash commands or harness messages
+- "audit" and "code review" prompts are hinted as T3
+- The "ModelScout active" notice is no longer repeated after a resume or compaction
+- Savings: context-tiered prices (for example Haiku 5.5 above 100K) are applied per request for Claude Code subagents
 
 ## [0.3.8] - 2026-11-12
 

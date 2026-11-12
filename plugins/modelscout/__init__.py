@@ -3,8 +3,8 @@
 Registers:
 - a `subagent_start` hook that marks delegated children, so a child never gets
   a card or re-routes the task it was given;
-- a `subagent_stop` hook that records whether each ModelScout-routed child
-  completed (tier, model, status; no goal text) in the shared outcomes log;
+- a `subagent_stop` hook that records how each ModelScout-routed child ended
+  (tier, model, ok or error; no goal text) in the shared outcomes log;
 - a `pre_llm_call` hook that adds the ModelScout card instructions to each new,
   substantial prompt, and answers `modelscout: ...` settings commands without a
   model call;
@@ -75,14 +75,18 @@ def _child_model(child_session_id):
 
 
 def _on_subagent_stop(child_session_id=None, child_status=None, **kwargs):
-    """Record whether a ModelScout-routed child got the job done."""
+    """Record how a ModelScout-routed child ended: ok, or error (infrastructure
+    or interruption, never a quality verdict)."""
     try:
         tier = _children.get(child_session_id)
         if not tier:
             return
+        # completed → ok; failed / interrupted / error → error (neutral: only a
+        # later `weak` verdict counts against a model).
         status = (child_status or "").lower()
+        ok = status == "completed"
         _check().outcomes.record("hermes", tier, _child_model(child_session_id),
-                                 "ok" if status == "completed" else "fail", why=status)
+                                 "ok" if ok else "error", why="" if ok else (status or "other"))
     except Exception:  # noqa: BLE001 - never break the parent's turn
         logger.debug("modelscout subagent_stop failed", exc_info=True)
 

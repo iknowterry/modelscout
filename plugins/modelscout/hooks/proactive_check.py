@@ -56,8 +56,9 @@ T4 = re.compile(r"\b(prove|proof|formal(ly)? verif\w*|novel research|research[- 
 T3 = re.compile(r"(\b(architect\w*|system design|design (a|the|our) \w+ system|debug\w*|root cause|"
                 r"race condition|deadlock|memory leak|refactor\w*|migrat\w*|security|vulnerab\w*|"
                 r"performance|optimi[sz]\w*|why (does|is|did|do)|strategy|trade-?offs?|algorithm\w*|"
-                r"concurren\w*|scalab\w*|investigat\w*|diagnos\w*|redesign|rewrite)\b)|"
-                r"ออกแบบ|บั๊ก|ดีบัก|วิเคราะห์|กลยุทธ์|สถาปัตยกรรม", re.I)
+                r"concurren\w*|scalab\w*|investigat\w*|diagnos\w*|redesign|rewrite|audit\w*|code review|"
+                r"review (this|the|my|our) (pr|code|diff|plugin|design|change\w*|patch|codebase))\b)|"
+                r"ออกแบบ|บั๊ก|ดีบัก|วิเคราะห์|กลยุทธ์|สถาปัตยกรรม|ตรวจสอบ|รีวิวโค้ด", re.I)
 T1 = re.compile(r"(\b(rename|typos?|spelling|reformat|format(ting)?|lint|prettier|sort|alphabeti\w*|"
                 r"translate|convert|bump|changelog|commit|boilerplate|docstrings?|comments?|"
                 r"regex|csv|grep|list (all|the)|find (all|every)|fix (the )?imports?|"
@@ -91,9 +92,13 @@ def ack_followup(p):
     return False
 
 
+SLASH_CMD = re.compile(r"^/[\w:-]+(\s|$)")
+HARNESS_TAG = re.compile(r"^</?[a-z]+-[a-z-]+[\s>]")
+
+
 def is_trivial(prompt):
     p = re.sub(r"[\s!.?,~]+$", "", prompt.strip().lower())
-    if not p or p.startswith("<") or p.startswith("/"):
+    if not p or SLASH_CMD.match(p) or HARNESS_TAG.match(p):
         return True
     if p in ACK:
         return True
@@ -127,7 +132,7 @@ def detect_model(transcript_path):
     except Exception:
         return None
     for line in reversed(lines):
-        if '"model"' not in line and "Set model to" not in line:
+        if '"model"' not in line and "<local-command-stdout>Set model to" not in line:
             continue
         try:
             d = json.loads(line)
@@ -139,8 +144,8 @@ def detect_model(transcript_path):
         if d.get("type") == "assistant" and msg.get("model") and msg["model"] != "<synthetic>":
             return msg["model"]
         content = msg.get("content")
-        if d.get("type") == "user" and isinstance(content, str) and "Set model to" in content:
-            m = re.search(r"Set model to\s+[`*]*([^`*<\n]+)", content)
+        if d.get("type") == "user" and isinstance(content, str) and "<local-command-stdout>Set model to" in content:
+            m = re.search(r"<local-command-stdout>Set model to\s+[`*]*([^`*<\n]+)", content)
             if m:
                 return m.group(1).strip()
     return None
@@ -308,6 +313,32 @@ def model_provider(model_id):
     return None
 
 
+SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/\[\]-]{0,79}")
+
+
+def safe_id(s):
+    """The model id if it is plain id-shaped text, else None (ids reach the prompt)."""
+    return s if isinstance(s, str) and SAFE_ID.fullmatch(s) else None
+
+
+JUNK = re.compile(r"customtools|image|tts|embed|audio|live|realtime|search|transcribe|codex-mini|"
+                  r"-pro-\d|-latest$|-\d{4}$|-\d{8}$|-\d{4}-\d{2}-\d{2}$", re.I)
+
+
+def usable(models):
+    return [(i, o, r) for i, o, r in models
+            if safe_id(i) and isinstance(o, (int, float)) and not isinstance(o, bool) and o > 0
+            and not JUNK.search(i)]
+
+
+def _months(date):
+    """"2026-11-09" → a month count; 0 when the date is missing or malformed."""
+    try:
+        return int(date[:4]) * 12 + int(date[5:7])
+    except (TypeError, ValueError):
+        return 0
+
+
 def provider_picks(host, host_model=None):
     """Best-fit model per tier for non-Claude hosts, from inventory or catalog price bands.
     Hermes can run any provider, so it uses the current model's provider."""
@@ -322,13 +353,11 @@ def provider_picks(host, host_model=None):
                    m.get("release_date") or "") for m in inv if isinstance(m, dict)]
     elif isinstance(inv, dict):
         models = [(k, (v.get("cost") or {}).get("output"), v.get("release_date") or "") for k, v in inv.items()]
+    models = usable(models)
     if not models:
         cat = catalog.load().get(prov[1], {}).get("models", {})
-        models = [(k, (v.get("cost") or {}).get("output"), v.get("release_date") or "")
-                  for k, v in cat.items() if v.get("tool_call")]
-    junk = re.compile(r"customtools|image|tts|embed|audio|live|realtime|search|transcribe|codex-mini|-pro-\\d|-\\d{4}$", re.I)
-    models = [(i, o, r) for i, o, r in models
-              if i and isinstance(o, (int, float)) and o > 0 and not junk.search(i)]
+        models = usable([(k, (v.get("cost") or {}).get("output"), v.get("release_date") or "")
+                         for k, v in cat.items() if v.get("tool_call")])
     if not models:
         return None
     newest = max(r for _, _, r in models)
@@ -340,20 +369,29 @@ def provider_picks(host, host_model=None):
         recent = models
     by_new = lambda m: (m[2], m[1])
     picks = {}
-    for t, (lo, hi) in {"T1": (0, 5), "T2": (5, 20), "T3": (20, 1e9)}.items():
-        inband = [m for m in recent if lo < m[1] <= hi or (lo == 0 and m[1] <= hi)]
+    for t, ok in {"T1": lambda o: o <= 5, "T2": lambda o: 5 < o < 20}.items():
+        inband = [m for m in recent if ok(m[1])]
         if inband:
             picks[t] = max(inband, key=by_new)[0]
     top = max(recent, key=lambda m: (m[1], m[2]))
-    frontier = [m for m in recent if m[1] > 20]
-    picks.setdefault("T3", top[0])
-    picks["T4"] = max(frontier, key=by_new)[0] if frontier else top[0]
+    frontier = [m for m in recent if m[1] >= 20]
+    t4 = max(frontier, key=by_new) if frontier else top
+    # A provider whose current flagship is cheap (no $20+ model in the last 6
+    # months): the flagship serves T3 and T4, not an older, pricier model.
+    current = [m for m in recent if _months(newest) - _months(m[2]) <= 6]
+    if current and t4 not in current:
+        frontier, t4 = [], max(current, key=lambda m: (m[1], m[2]))
+    below = [m for m in frontier if m[1] < t4[1]]
+    picks["T3"] = max(below, key=by_new)[0] if below else t4[0]
+    picks["T4"] = t4[0]
     return picks
 
 
 def build_block(prompt, transcript_path, eff, host, host_model=None):
     tier_hint, basis = guess_tier(prompt)
-    model_id = detect_model(transcript_path) if host == "claude" else host_model
+    model_id = safe_id(host_model)
+    if host == "claude" and not model_id:  # no usable payload model: guess from the transcript
+        model_id = safe_id(detect_model(transcript_path))
     fam, cls = model_class(model_id)
     current = (f"{model_id} ({fam}, T{cls}-class)" if fam else model_id if model_id
                else "unknown — use the model id from your own system prompt")
@@ -423,6 +461,12 @@ def emit_context(event, text):
                      ensure_ascii=False))
 
 
+def payload_model(data):
+    m = data.get("model")
+    m = m.get("id") if isinstance(m, dict) else m
+    return m if isinstance(m, str) and m.strip() else None
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -450,7 +494,8 @@ def main():
     eff = prefs.effective()
     if eff["mode"] == "off" or is_trivial(prompt):
         return
-    block = build_block(prompt, data.get("transcript_path"), eff, host, extra.get("model"))
+    hm = extra.get("model") if host != "claude" else payload_model(data)
+    block = build_block(prompt, data.get("transcript_path"), eff, host, hm)
     if host == "hermes":
         print(json.dumps({"context": block}, ensure_ascii=False))
     else:

@@ -375,8 +375,9 @@ subscriptions in `~/.claude/modelscout-profile.json`.
    reasoning → **T4** frontier.
 2. Veto by capability: context size, vision/PDF, tool use, structured output,
    latency.
-3. Pick the cheapest available model in the tier's price band
-   (T1 ≤ $5/1M out · T2 $5–20 · T3+ > $20 with `reasoning`).
+3. Pick the model in the tier's price band (per 1M output tokens): T1 ≤ $5 ·
+   T2 above $5, below $20 · T4 the newest model at $20 or more · T3 the newest
+   one priced below T4.
 4. Honesty: bias **up**-tier when uncertain; never recommend a model that isn't
    in your inventory; always explain the tier so you learn the pattern.
 

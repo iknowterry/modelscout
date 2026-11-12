@@ -51,6 +51,16 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/post-tool.sh\""
+          }
+        ]
+      }
     ]
   }
 }

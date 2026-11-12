@@ -1,16 +1,29 @@
 #!/usr/bin/env python3
-"""ModelScout outcomes: did each routed subagent get the job done?
+"""ModelScout outcomes: how did each routed subagent end?
 
-One JSON line per routed subagent in ~/.claude/modelscout-outcomes.jsonl:
-  {"id", "ts", "host", "tier", "model", "status": "ok"|"fail", "why"}
-No goal text, prompts or output are stored. Records come from:
-- Hermes: the subagent_stop hook (child status: completed / failed / interrupted).
-- Claude Code: the PostToolUse hook on the Agent tool.
-- The user: `modelscout: weak` marks the latest outcome as a failure, and the
-  main model runs `outcomes.py weak` when it had to redo a subagent's work.
+Append-only JSONL in ~/.claude/modelscout-outcomes.jsonl. Two kinds of line:
+  outcome  {"id","ts","host","tier","model","status"[,"why"]}
+  update   {"ts","ref","status"[,"model"][,"why"]}   folds into the outcome `ref`
+Only ids, timestamps, host, tier, model, status and a coarse reason bucket are
+stored: never goal text, prompts, output, error text or transcript paths.
+
+States:
+  pending  an async subagent was launched and has not finished yet
+  ok       the subagent finished (says nothing about quality)
+  weak     a quality verdict: the user said `modelscout: weak`, or the main
+           model ran `outcomes.py weak` after redoing the work. This is the ONLY
+           state that counts against a model (see weak_rate).
+  error    infrastructure or interruption (usage limit, model unavailable,
+           permission denied, API error, user interrupt). Neutral for learning.
+Allowed updates: pending -> ok | error, ok -> weak. Anything else is ignored, so
+a repeated update is a no-op.
+
+Older lines (status "ok"/"fail", updates {"ref","verdict":"fail"}) still read:
+a base "fail" is an unverified failure and reads as error; a "fail" verdict
+reads as weak.
 
 Usage:
-  outcomes.py weak       # mark the latest outcome as a failure
+  outcomes.py weak       # mark the latest finished result as weak
   outcomes.py summary    # outcomes per tier and model
 """
 import json
@@ -25,6 +38,16 @@ OUTCOMES = Path.home() / ".claude" / "modelscout-outcomes.jsonl"
 TAG = re.compile(r"^\s*(?:⚡\s*)?modelscout\s*:\s*(t[1-4])\b", re.I)
 MARK = re.compile(r"^\s*(?:⚡\s*)?modelscout\b", re.I)
 FAIL_STATUSES = {"failed", "error", "interrupted", "timeout", "timed_out", "cancelled"}
+STATES = ("pending", "ok", "weak", "error")
+TIERS = ("T1", "T2", "T3", "T4")
+PENDING_TTL = 86400  # summary ignores pending records older than a day
+_NEXT = {"pending": ("ok", "error"), "ok": ("weak",)}
+_REASONS = (  # first match wins; "limit" before generic API-error text
+    ("interrupt", re.compile(r"interrupt|aborted|cancel", re.I)),
+    ("limit", re.compile(r"rate.?limit|usage limit|session limit|quota|\b429\b|hit your .{0,20}limit", re.I)),
+    ("unavailable", re.compile(r"unavailable|overload|server.?error|connection|timed? ?out|timeout|\b5\d\d\b", re.I)),
+    ("denied", re.compile(r"denied|permission|authenticat|unauthori|forbidden|\b40[13]\b", re.I)),
+)
 
 
 def tier_from(text):
@@ -35,6 +58,21 @@ def tier_from(text):
 
 def is_routed(text):
     return bool(MARK.match(text or ""))
+
+
+def reason(*texts):
+    """Coarse bucket for an error: limit / unavailable / denied / interrupt /
+    other. Only the bucket is ever stored, never the text."""
+    s = " ".join(str(t) for t in texts if t)[:2000]
+    for name, rx in _REASONS:
+        if rx.search(s):
+            return name
+    return "other"
+
+
+def _bucket(why):
+    w = re.sub(r"[^a-z_]", "", str(why or "").lower())[:20]
+    return w
 
 
 def _append(rec):
@@ -55,16 +93,36 @@ def _append(rec):
         return False
 
 
-def record(host, tier, model, status, why=""):
-    """Record one routed subagent. status: "ok" or "fail"."""
-    return _append({"id": secrets.token_hex(4), "ts": round(time.time()), "host": host,
-                    "tier": tier if tier in ("T1", "T2", "T3", "T4") else None,
-                    "model": (model or None), "status": "fail" if status == "fail" else "ok",
-                    "why": why or ""})
+def record(host, tier, model, status, why="", id=None):  # noqa: A002
+    """Record one routed subagent; status "ok", "error" or "pending" (legacy
+    "fail" → "error"). Returns the outcome id, or None if nothing was written."""
+    status = status if status in ("ok", "pending") else "error"
+    rid = str(id)[:64] if id else secrets.token_hex(4)
+    rec = {"id": rid, "ts": round(time.time()), "host": str(host or "")[:16],
+           "tier": tier if tier in TIERS else None, "model": (str(model)[:80] if model else None),
+           "status": status}
+    if status == "error":
+        rec["why"] = _bucket(why) or "other"
+    return rid if _append(rec) else None
+
+
+def resolve(ref, status, model=None, why=""):
+    """Finish a pending outcome as "ok" or "error". No-op (False) unless `ref`
+    is still pending."""
+    cur = find(ref)
+    if not cur or cur["status"] != "pending" or status not in ("ok", "error"):
+        return False
+    upd = {"ts": round(time.time()), "ref": cur["id"], "status": status}
+    if model:
+        upd["model"] = str(model)[:80]
+    if status == "error":
+        upd["why"] = _bucket(why) or "other"
+    return _append(upd)
 
 
 def read():
-    """Outcomes oldest first, with later verdicts (`weak`) folded in."""
+    """Outcomes oldest first (by launch/record line), updates folded in. Each
+    row also carries `done`: the time it finished (None while pending)."""
     out, by_id = [], {}
     try:
         lines = OUTCOMES.read_text().splitlines()
@@ -77,24 +135,77 @@ def read():
             continue
         if not isinstance(r, dict):
             continue
-        if r.get("verdict") and r.get("ref") in by_id:
-            by_id[r["ref"]].update(status=r["verdict"], why=r.get("why") or "weak")
-        elif r.get("id") and r.get("status") in ("ok", "fail"):
-            by_id[r["id"]] = r
-            out.append(r)
+        if r.get("ref") is not None:
+            cur = by_id.get(r.get("ref"))
+            if cur is None:
+                continue
+            new = r.get("status")
+            if r.get("verdict") == "fail":  # legacy weak verdict
+                new = "weak"
+            if new not in _NEXT.get(cur["status"], ()):
+                continue
+            cur["status"] = new
+            if new != "weak":
+                cur["done"] = r.get("ts") or cur.get("done")
+            if r.get("model") and new != "weak":
+                cur["model"] = r["model"]
+            if new == "error":
+                cur["why"] = r.get("why") or "other"
+            elif new == "weak":
+                cur["why"] = "weak"
+            continue
+        rid, status = r.get("id"), r.get("status")
+        if not rid or rid in by_id:
+            continue
+        if status == "fail":  # legacy unverified failure: neutral
+            status = "error"
+        if status not in ("ok", "pending", "error"):
+            continue
+        row = {"id": rid, "ts": r.get("ts") or 0, "host": r.get("host"), "tier": r.get("tier"),
+               "model": r.get("model"), "status": status,
+               "why": (r.get("why") or "other") if status == "error" else "",
+               "done": None if status == "pending" else (r.get("ts") or 0)}
+        by_id[rid] = row
+        out.append(row)
     return out
 
 
+def find(ref):
+    for r in read():
+        if r["id"] == ref:
+            return r
+    return None
+
+
+def _finished(rows):
+    """ok + weak rows, ordered by finish time (ties keep file order)."""
+    fin = [(r.get("done") or 0, i, r) for i, r in enumerate(rows) if r["status"] in ("ok", "weak")]
+    return [r for _, _, r in sorted(fin, key=lambda t: (t[0], t[1]))]
+
+
 def mark_last_weak(why="weak"):
-    """Mark the latest outcome as a failure. Returns the outcome or None."""
-    rows = read()
-    if not rows:
+    """Mark the most recently FINISHED result as weak.
+
+    Rule: take the outcomes whose status is ok or weak (errors and still-pending
+    ones are skipped), ordered by when they finished. If the newest is ok, append
+    a weak update for it; if it is already weak, write nothing (so marking twice
+    is idempotent). Returns that outcome (with tier and model), or None."""
+    fin = _finished(read())
+    if not fin:
         return None
-    last = rows[-1]
-    if last["status"] != "fail":
-        _append({"ts": round(time.time()), "ref": last["id"], "verdict": "fail", "why": why})
-        last.update(status="fail", why=why)
+    last = fin[-1]
+    if last["status"] == "ok":
+        _append({"ts": round(time.time()), "ref": last["id"], "status": "weak"})
+        last.update(status="weak", why="weak")
     return last
+
+
+def weak_rate(tier, model=None, last=20):
+    """(n_finished, n_weak) over the `last` most recently finished (ok + weak)
+    outcomes for `tier` (and `model`, if given). Errors and pending never count."""
+    fin = [r for r in _finished(read()) if r.get("tier") == tier and (model is None or r.get("model") == model)]
+    fin = fin[-last:] if last else fin
+    return len(fin), sum(r["status"] == "weak" for r in fin)
 
 
 def clear():
@@ -105,18 +216,22 @@ def clear():
 
 
 def summary():
-    rows = read()
+    now = time.time()
+    rows = [r for r in read() if r["status"] != "pending" or now - (r.get("ts") or 0) < PENDING_TTL]
     if not rows:
         return "outcomes: none recorded yet"
     agg = {}
     for r in rows:
-        k = (r.get("tier") or "T?", r.get("model") or "?")
-        a = agg.setdefault(k, [0, 0])
-        a[0] += 1
-        a[1] += r["status"] == "fail"
-    lines = [f"outcomes: {len(rows)} routed subagents"]
-    for (tier, model), (n, f) in sorted(agg.items()):
-        lines.append(f"  {tier} {model}: {n - f} ok, {f} weak or failed")
+        a = agg.setdefault((r.get("tier") or "T?", r.get("model") or "?"), {s: 0 for s in STATES})
+        a[r["status"]] += 1
+    running = sum(a["pending"] for a in agg.values())
+    head = f"outcomes: {len(rows)} routed subagents" + (f" ({running} still running)" if running else "")
+    lines = [head]
+    for (tier, model), a in sorted(agg.items()):
+        fin = a["ok"] + a["weak"]
+        if fin or a["error"]:
+            lines.append(f"  {tier} {model}: {fin} finished, {a['weak']} weak, {a['error']} errors")
+    lines.append("  Only weak results count against a model; errors (limits, outages, denials, interrupts) are neutral.")
     return "\n".join(lines)
 
 
@@ -124,7 +239,7 @@ def main(argv):
     cmd = argv[0] if argv else "summary"
     if cmd == "weak":
         r = mark_last_weak()
-        print("ModelScout: no routed subagent recorded yet." if r is None else
+        print("ModelScout: no finished routed subagent recorded yet." if r is None else
               f"ModelScout: noted — the last {r.get('tier') or ''} {r.get('model') or 'subagent'} result was weak.")
         return 0
     print(summary())

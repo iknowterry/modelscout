@@ -51,10 +51,13 @@ def main():
             note = f"inventory: {n} models across {len(provs)} provider(s)"
     except Exception:
         pass
+    # Announce only in a fresh conversation; after resume/compact it would repeat mid-conversation.
+    announce = ""
+    if data.get("source") in (None, "startup", "clear"):
+        announce = (f"In your FIRST reply that involves real work, prepend one line: "
+                    f"\"🔭 ModelScout active ({mode} mode)\". Do not repeat it afterwards. ")
     text = (f"ModelScout is ACTIVE in this session (mode: {mode}; {note}).\n"
-            f"In your FIRST reply that involves real work, prepend one line: "
-            f"\"🔭 ModelScout active ({mode} mode)\". Do not repeat it afterwards. Per-task "
-            f"behavior follows the <modelscout> block injected with each new task prompt.")
+            f"{announce}Per-task behavior follows the <modelscout> block injected with each new task prompt.")
     event = data.get("hook_event_name") or "SessionStart"
     print(json.dumps({"hookSpecificOutput": {"hookEventName": event,
                                              "additionalContext": f"<modelscout-status>\n{text}\n</modelscout-status>"}},
