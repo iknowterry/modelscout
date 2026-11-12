@@ -349,10 +349,19 @@ Everything lives in one portable plugin, [`plugins/modelscout/`](plugins/modelsc
 
 | Part | What it is |
 |---|---|
-| [`scripts/discover-models.sh`](plugins/modelscout/skills/modelscout/scripts/discover-models.sh) | Builds the inventory from your keys (read-only "list models" calls — costs $0, sends no prompts) + caches the models.dev catalog for 7 days |
+| [`scripts/discover-models.sh`](plugins/modelscout/skills/modelscout/scripts/discover-models.sh) | Builds the inventory from your keys (read-only "list models" calls — costs $0, sends no prompts) |
+| [`scripts/catalog.py`](plugins/modelscout/skills/modelscout/scripts/catalog.py) | Keeps the models.dev catalog fresh on its own (see below), and merges in Hermes's cache when it's there |
 | [`references/heuristics.md`](plugins/modelscout/skills/modelscout/references/heuristics.md) | Host-agnostic brain: task tiers T1–T4, capability vetoes, price-band mapping, honesty rules, subscription fallback |
 | [`scripts/prefs.py`](plugins/modelscout/skills/modelscout/scripts/prefs.py), [`scripts/savings.py`](plugins/modelscout/skills/modelscout/scripts/savings.py) | Your switch/ask/stay defaults, and the measured savings report |
 | [`hooks/`](plugins/modelscout/hooks) | One prompt hook that speaks Claude Code, Codex and Gemini CLI, and shows the per-task card |
+
+**Does the catalog stay current?** Yes, with no manual step. On Claude Code,
+Codex and Gemini CLI, when the catalog is more than 7 days old, the session-start
+hook fetches it in the background: one public GET to `https://models.dev/api.json`,
+with no keys and no data about you. On Hermes, ModelScout reads Hermes's own
+models.dev cache and makes no network calls. `modelscout: refresh` updates it now,
+`modelscout: status` shows its age, and `modelscout: catalog off` turns the
+background refresh off.
 
 **Do I need API keys?** No. Keys give the most precise inventory (one read-only
 listing call, never a prompt, $0). Without keys: inside Claude Code the Claude
@@ -377,6 +386,7 @@ Full rules: [`heuristics.md`](plugins/modelscout/skills/modelscout/references/he
 - [x] **Savings report:** `modelscout: savings` (v0.3.0)
 - [x] Savings report for Hermes Agent sessions (v0.3.4)
 - [x] Native Hermes plugin: hook, skill and `/modelscout` command (v0.3.7)
+- [x] Model catalog keeps itself fresh, no manual refresh (v0.3.9)
 - [ ] Savings report for Codex and Gemini session logs
 - [ ] Azure OpenAI / Bedrock / Vertex key detection
 - [ ] `modelscout` CLI wrapper (`npx modelscout` → prints inventory + advice)

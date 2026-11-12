@@ -21,7 +21,7 @@ are running in. Paths below are relative to this skill's folder.
 | File | Contents |
 |---|---|
 | `~/.claude/model-inventory.json` | Models the user's API keys can access, with pricing, limits and capabilities |
-| `~/.claude/model-catalog.json` | The full models.dev catalog, including models the user does NOT have |
+| `~/.claude/model-catalog.json` | The full models.dev catalog, including models the user does NOT have. Refreshed weekly in the background; Hermes's `~/.hermes/models_dev_cache.json` is merged in when present. `python3 scripts/catalog.py status` shows its age |
 
 - **You can run scripts:** if the inventory is missing, older than 7 days, or
   the user asks for a refresh, run `bash scripts/discover-models.sh`. It reads

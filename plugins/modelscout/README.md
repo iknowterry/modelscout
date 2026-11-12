@@ -39,7 +39,7 @@ Then it acts on your default for that tier:
 
 Follow-ups ("yes, test it"), quick questions and chit-chat get no card.
 
-Picks come from the models your own keys and subscriptions reach, priced live from the [models.dev](https://models.dev) catalog. New models appear without a plugin update, and it never suggests a model you can't use.
+Picks come from the models your own keys and subscriptions reach, priced live from the [models.dev](https://models.dev) catalog. On Hermes that catalog is Hermes's own `models_dev_cache.json`, which Hermes keeps fresh, so new models appear without a plugin update or a manual refresh. It never suggests a model you can't use.
 
 ## What the plugin registers
 
@@ -47,7 +47,7 @@ Picks come from the models your own keys and subscriptions reach, priced live fr
 |---|---|
 | `pre_llm_call` hook | Adds the card instructions to new, substantial prompts. Answers `modelscout: …` settings commands itself, blocking the turn so it makes no model call. |
 | `subagent_start` hook | Marks delegated children, so a child never gets a card or re-routes the task it was given. |
-| `/modelscout` command | `status`, `savings`, `auto`, `ask`, `inform`, `off`, `reset`, and per-tier defaults such as `T1 stay` or `T3 switch` |
+| `/modelscout` command | `status` (settings and catalog age), `savings`, `refresh`, `auto`, `ask`, `inform`, `off`, `reset`, and per-tier defaults such as `T1 stay` or `T3 switch` |
 | `modelscout:modelscout` skill | The full recommendation logic: tiers, price bands, honesty rules, savings report |
 
 No tools, no middleware, no Python dependencies.
@@ -61,10 +61,10 @@ Type `modelscout: <setting>` in a prompt or `/modelscout <setting>`:
 
 ## Disclosures
 
-- **Files read and written:** settings live in `~/.claude/modelscout-profile.json`, which is shared with ModelScout on the other agents. Model lists are read from `~/.claude/model-inventory.json` and `~/.claude/model-catalog.json` when present.
+- **Files read and written:** settings live in `~/.claude/modelscout-profile.json`, which is shared with ModelScout on the other agents. Model lists are read from `~/.claude/model-inventory.json`, `~/.claude/model-catalog.json` and Hermes's own `$HERMES_HOME/models_dev_cache.json` when present (read-only).
 - **Savings report:** reads Hermes's session database (`$HERMES_HOME/state.db`, default `~/.hermes/state.db`) and Claude Code transcripts under `~/.claude/projects/`. Both are opened read-only.
-- **Network and credentials:** the plugin code makes no network calls and never reads credentials. The bundled skill can tell the agent to run `skills/modelscout/scripts/discover-models.sh`, which goes through Hermes's normal terminal-tool approval. That script reads `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`/`GOOGLE_API_KEY` and `OPENROUTER_API_KEY` from the environment. It sends each key only to its own provider's read-only "list models" endpoint and fetches the public models.dev catalog. Skip it and ModelScout uses the host's model lineup and the catalog.
-- **Not present:** no telemetry, no background processes, no self-updating, no runtime patches of Hermes.
+- **Network and credentials:** in Hermes the plugin code makes no network calls and never reads credentials; `/modelscout refresh` only reports the age of Hermes's cache. The bundled skill can tell the agent to run `skills/modelscout/scripts/discover-models.sh`, which goes through Hermes's normal terminal-tool approval. That script reads `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`/`GOOGLE_API_KEY` and `OPENROUTER_API_KEY` from the environment. It sends each key only to its own provider's read-only "list models" endpoint and fetches the public models.dev catalog. Skip it and ModelScout uses the host's model lineup and the catalog.
+- **Not present:** no telemetry, no background processes in Hermes, no self-updating, no runtime patches of Hermes.
 
 ## License
 

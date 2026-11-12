@@ -57,7 +57,7 @@ def _on_pre_llm_call(user_message="", model="", session_id="", **kwargs):
         if cmd is not None:
             # A recognised settings command is answered here and never reaches
             # the model. Other "ModelScout: …" text (delegated goals) runs as usual.
-            return {"action": "block", "message": core.handle_command(cmd)}
+            return {"action": "block", "message": core.handle_command(cmd, "hermes")}
         eff = core.prefs.effective()
         if eff["mode"] == "off" or core.is_trivial(prompt):
             return None
@@ -69,7 +69,7 @@ def _on_pre_llm_call(user_message="", model="", session_id="", **kwargs):
 
 def _on_command(raw_args=""):
     try:
-        return _check().handle_command(raw_args or "status")
+        return _check().handle_command(raw_args or "status", "hermes")
     except Exception as e:  # noqa: BLE001
         return f"ModelScout: {e}"
 
@@ -83,5 +83,5 @@ def register(ctx):
     ctx.register_command(
         "modelscout",
         handler=_on_command,
-        description="ModelScout: status | savings | auto | ask | inform | off | T1 stay",
+        description="ModelScout: status | savings | refresh | auto | ask | inform | off | T1 stay",
     )

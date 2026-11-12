@@ -34,6 +34,7 @@ def _load(name, path):
 
 
 prefs = _load("modelscout_prefs", PREFS)
+catalog = _load("modelscout_catalog", SCRIPTS / "catalog.py")
 
 
 def savings_text(days=30):
@@ -157,7 +158,9 @@ TIER_CMD = (re.compile(r"^(?:default\s+|always\s+)?(t[1-4])\s+(switch|stay|ask|c
             re.compile(r"^(?:always\s+)?(switch|stay|ask|clear)\s+(?:for\s+)?(t[1-4])$"))
 SETTING_WORDS = {"", "status", "show", "prefs", "settings", "on", "quiet", "quiet receipts",
                  "receipts mismatch-only", "loud", "loud receipts", "receipts always", "receipts on",
-                 "reset", "savings", "saved", "report", "help"}
+                 "reset", "savings", "saved", "report", "help",
+                 "refresh", "update", "refresh catalog", "update catalog", "catalog",
+                 "catalog on", "catalog off", "auto-refresh on", "auto-refresh off"}
 
 
 def _norm(cmd):
@@ -179,11 +182,29 @@ def parse_command(prompt):
     return None
 
 
-def handle_command(cmd):
+def catalog_command(host=None):
+    """Refresh the models.dev catalog now. On Hermes the plugin makes no
+    network calls: Hermes keeps its own cache fresh, so just report it."""
+    if host == "hermes":
+        return ("ModelScout: Hermes keeps the model catalog fresh itself; ModelScout reads it.\n"
+                + catalog.status())
+    ok, msg = catalog.refresh(timeout=20)
+    return f"ModelScout: {msg}\n" + catalog.status()
+
+
+def handle_command(cmd, host=None):
     c = _norm(cmd)
     try:
         if c in ("", "status", "show", "prefs", "settings"):
-            return "ModelScout settings\n" + prefs.describe()
+            off = "" if host == "hermes" or prefs.catalog_auto_refresh() else " · auto-refresh off"
+            return "ModelScout settings\n" + prefs.describe() + "\n" + catalog.status() + off
+        elif c in ("refresh", "update", "refresh catalog", "update catalog", "catalog"):
+            return catalog_command(host)
+        elif c in ("catalog on", "auto-refresh on", "catalog off", "auto-refresh off"):
+            on = c.endswith(" on")
+            prefs.set_catalog_auto_refresh(on)
+            return ("ModelScout settings saved ✓\nCatalog auto-refresh: "
+                    + ("on (weekly, in the background)" if on else "off (refresh with `modelscout: refresh`)"))
         elif c in prefs.MODES or c in prefs.LEGACY_MODES or c == "on":
             prefs.set_mode("auto" if c == "on" else c)
         elif c in ("quiet", "quiet receipts", "receipts mismatch-only"):
@@ -197,7 +218,7 @@ def handle_command(cmd):
         else:
             m = TIER_CMD[0].match(c) or TIER_CMD[1].match(c)
             if not m:
-                return ("ModelScout commands: modelscout: auto | ask | inform | off | status | savings | reset | "
+                return ("ModelScout commands: modelscout: auto | ask | inform | off | status | savings | refresh | reset | "
                         "quiet | loud | T1 switch|stay|ask|clear (same for T2–T4)")
             a, b = m.groups()
             tier, action = (a, b) if a.startswith("t") else (b, a)
@@ -290,7 +311,7 @@ def provider_picks(host, host_model=None):
     elif isinstance(inv, dict):
         models = [(k, (v.get("cost") or {}).get("output"), v.get("release_date") or "") for k, v in inv.items()]
     if not models:
-        cat = load_json("~/.claude/model-catalog.json").get(prov[1], {}).get("models", {})
+        cat = catalog.load().get(prov[1], {}).get("models", {})
         models = [(k, (v.get("cost") or {}).get("output"), v.get("release_date") or "")
                   for k, v in cat.items() if v.get("tool_call")]
     junk = re.compile(r"customtools|image|tts|embed|audio|live|realtime|search|transcribe|codex-mini|-pro-\\d|-\\d{4}$", re.I)
@@ -369,7 +390,7 @@ guess: the model id in your own system prompt always wins.
 3. On a mismatch, act per on-mismatch for the tier you chose:
 {rules}
 {own}
-Settings: {settings} "modelscout: auto|ask|inform|off|savings|T1 stay".{selfcontained}
+Settings: {settings} "modelscout: auto|ask|inform|off|savings|refresh|T1 stay".{selfcontained}
 </modelscout>"""
 
 
@@ -406,7 +427,7 @@ def main():
 
     cmd = parse_command(prompt)
     if cmd is not None:
-        result = handle_command(cmd)
+        result = handle_command(cmd, host)
         if host == "gemini":
             emit_context(event, "Relay this to the user verbatim and do nothing else:\n" + result)
         else:

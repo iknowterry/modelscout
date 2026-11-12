@@ -1,11 +1,32 @@
 #!/usr/bin/env python3
 """ModelScout — SessionStart hook (Claude Code, Codex, Gemini CLI).
-Announces that ModelScout is active. Always exits 0; prints JSON only."""
+Announces that ModelScout is active, and keeps the model catalog fresh: when it
+is more than 7 days old, a detached background process fetches models.dev
+(one public GET, no keys). Always exits 0; prints JSON only."""
 import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills" / "modelscout" / "scripts"))
+
+
+def refresh_catalog_in_background():
+    """Start a detached `catalog.py refresh` when the catalog is stale. Silent:
+    stdout must stay JSON-only, and offline or sandboxed hosts just skip it."""
+    import subprocess
+    import catalog
+    if prefs_off_refresh() or not catalog.needs_refresh():
+        return
+    catalog.ATTEMPT_STAMP.parent.mkdir(parents=True, exist_ok=True)
+    catalog.ATTEMPT_STAMP.touch()  # claim the attempt so parallel sessions don't all fetch
+    subprocess.Popen([sys.executable, str(Path(catalog.__file__)), "refresh"],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
+
+
+def prefs_off_refresh():
+    import prefs
+    return not prefs.catalog_auto_refresh()
 
 
 def main():
@@ -14,6 +35,10 @@ def main():
     except Exception:
         data = {}
     import prefs
+    try:
+        refresh_catalog_in_background()
+    except Exception:
+        pass
     mode = prefs.effective()["mode"]
     if mode == "off":
         return

@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- The model catalog keeps itself fresh. New models and prices show up with no manual step.
+  - **Claude Code, Codex and Gemini CLI:** when the catalog is more than 7 days old, the session-start hook refreshes it in the background with one public GET to models.dev (no keys). A failed attempt waits 6 hours before retrying.
+  - **Hermes:** ModelScout merges in Hermes's own `models_dev_cache.json`, which Hermes keeps fresh, and makes no network calls.
+- New `scripts/catalog.py`, one catalog loader for picks and savings prices. It merges the files per model, and the newer file wins.
+- New commands:
+  - `modelscout: refresh` updates the catalog now. On Hermes it reports the age of Hermes's cache instead.
+  - `modelscout: catalog off` / `catalog on` turns the background refresh off or back on.
+  - `modelscout: status` now shows the catalog's age.
+- Regression tests in `tests/test_catalog.py`
+
+### Fixed
+- The catalog fetch works on Python builds without root certificates (python.org builds on macOS): it falls back to `curl`
+
 ## [0.3.8] - 2026-11-12
 
 First end-to-end run on a real Hermes setup (`gpt-6-sol` on a Codex subscription, `advanced-delegation` model routes): a T1 rename was routed to a `gpt-6-luna` child on the `light` route and verified by the main model.

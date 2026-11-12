@@ -28,7 +28,6 @@ from pathlib import Path
 
 PROJECTS = Path.home() / ".claude" / "projects"
 HERMES_DB = Path(os.environ.get("HERMES_HOME") or Path.home() / ".hermes") / "state.db"
-CATALOG = Path.home() / ".claude" / "model-catalog.json"
 MARKER = re.compile(r"^\s*(⚡\s*)?modelscout\b", re.I)
 FAMILY_RANK = {"haiku": 1, "sonnet": 2, "opus": 3, "fable": 4, "mythos": 4}
 
@@ -41,11 +40,23 @@ def family(model):
     return None
 
 
+def _catalog():
+    """The shared catalog loader (catalog.py beside this script), loaded by path."""
+    import importlib.util
+    name = "modelscout_catalog"
+    if name not in sys.modules:
+        spec = importlib.util.spec_from_file_location(name, Path(__file__).with_name("catalog.py"))
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+    return sys.modules[name]
+
+
 class Prices:
     def __init__(self):
         self.models, self.all = {}, {}
         try:
-            cat = json.loads(CATALOG.read_text())
+            cat = _catalog().load()
             self.models = cat.get("anthropic", {}).get("models", {}) or {}
             for prov in cat.values():
                 for k, v in ((prov or {}).get("models") or {}).items():

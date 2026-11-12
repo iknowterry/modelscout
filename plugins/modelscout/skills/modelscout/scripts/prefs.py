@@ -106,6 +106,21 @@ def set_receipts(value):
     save(d)
 
 
+def set_catalog_auto_refresh(on):
+    """Weekly background refresh of the models.dev catalog (Claude Code, Codex,
+    Gemini CLI). Off means ModelScout makes no network calls on its own."""
+    d = load()
+    if on:
+        d.pop("catalog_auto_refresh", None)
+    else:
+        d["catalog_auto_refresh"] = False
+    save(d)
+
+
+def catalog_auto_refresh(d=None):
+    return (d if d is not None else load()).get("catalog_auto_refresh") is not False
+
+
 def reset():
     d = load()
     for k in ("mode", "receipts", "defaults"):
