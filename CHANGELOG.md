@@ -1,9 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.10] - 2026-11-12
 
 ### Fixed
 - The card instructions now tell the model to run `outcomes.py weak` when it had to redo a routed subagent's work. In 0.3.9 only `SKILL.md` said so, and the block tells the model not to load the skill, so weak results were only recorded when you typed `modelscout: weak`
+
+### Changed
+- README: a section on how ModelScout learns from weak results, and an updated roadmap
+- Plugin descriptions mention learning from weak results
 
 ## [0.3.9] - 2026-11-12
 

@@ -11,8 +11,8 @@
     {
       "name": "modelscout",
       "source": "./plugins/modelscout",
-      "description": "Cuts token costs and makes subscription usage limits last longer. Knows which AI models you actually have (keys and subscriptions, live pricing), picks the right one for every task, routes it to a best-fit subagent, and proves what that saved. One open Agent Skills plugin for Claude Code, Codex, ChatGPT, Gemini CLI and Hermes.",
-      "version": "0.3.9",
+      "description": "Cuts token costs and makes subscription usage limits last longer. Knows which AI models you actually have (keys and subscriptions, live pricing), picks the right one for every task, routes it to a best-fit subagent, learns from weak results, and proves what that saved. One open Agent Skills plugin for Claude Code, Codex, ChatGPT, Gemini CLI and Hermes.",
+      "version": "0.3.10",
       "author": {
         "name": "iKnowTerry"
       },

@@ -67,6 +67,9 @@ And on every task:
   the first time.
 - ⏳ **Your rate limits last longer.** Mechanical work on light models leaves
   your frontier-model quota for the work that needs it.
+- 🧠 **It learns from weak results.** When a light model keeps doing a poor
+  job on one kind of task, ModelScout stops sending that tier to it and routes
+  one step up. Errors such as a usage limit or an outage never count.
 
 **No API keys needed for subscribers.** Declare what you have once ("Claude
 Max + ChatGPT Plus") and ModelScout advises from that — savings framed in what
@@ -138,6 +141,28 @@ the same settings as a popup.
 reports back, and redone if it's weak. Destructive or outward-facing steps
 (push, deploy, delete, send) and 1–2 step jobs stay on your main session.
 Follow-ups like "yes" or "continue" never trigger a card.
+
+### It learns which models hold up
+
+ModelScout records how each routed subagent ended: the tier, the model and a
+status. It stores no task text.
+
+| Status | Means | Counts against the model? |
+|---|---|---|
+| **ok** | The subagent finished | No |
+| **weak** | The result was poor: your main model had to redo it, or you typed `modelscout: weak` | **Yes** |
+| **error** | A usage limit, an outage, a denied permission or an interrupt | No |
+
+When a model has at least 3 finished results for a tier in the last 30 days and
+40% or more of them were weak, that tier is routed one step up, for example T1
+from Haiku to Sonnet. The card instructions say why, and it wears off on its
+own after 30 days, so the cheaper model gets another try.
+
+```text
+modelscout: weak       # the last routed result was poor
+modelscout: outcomes   # results per tier and model, and what was learned
+modelscout: forget     # clear what was learned
+```
 
 ## How much does it save? Measured, not guessed
 
@@ -389,7 +414,13 @@ Full rules: [`heuristics.md`](plugins/modelscout/skills/modelscout/references/he
 - [x] Savings report for Hermes Agent sessions (v0.3.4)
 - [x] Native Hermes plugin: hook, skill and `/modelscout` command (v0.3.7)
 - [x] Model catalog keeps itself fresh, no manual refresh (v0.3.9)
+- [x] Outcome tracking: how each routed subagent ended, with no task text stored (v0.3.9)
 - [x] Routing that learns: a model that keeps giving weak results for a tier is skipped for it (v0.3.9)
+- [x] Context-tiered prices in the savings report (v0.3.9)
+- [x] The main model reports weak results on its own, so learning needs no typing (v0.3.10)
+- [ ] Quick picks on Codex and Gemini limited to your inventory and declared subscriptions
+- [ ] Savings net of the main model's briefing and checking, so the figure is not an upper bound
+- [ ] Outcome tracking for Codex and Gemini sessions
 - [ ] Savings report for Codex and Gemini session logs
 - [ ] Azure OpenAI / Bedrock / Vertex key detection
 - [ ] `modelscout` CLI wrapper (`npx modelscout` → prints inventory + advice)
