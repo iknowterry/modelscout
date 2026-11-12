@@ -12,7 +12,7 @@
       "name": "modelscout",
       "source": "./plugins/modelscout",
       "description": "Knows which AI models you actually have (keys and subscriptions, live pricing), picks the right one for every task, routes it to a best-fit subagent, and proves what that saved. One open Agent Skills plugin for Claude Code, Codex, ChatGPT, Gemini CLI and Hermes.",
-      "version": "0.3.6",
+      "version": "0.3.7",
       "author": {
         "name": "iKnowTerry"
       },

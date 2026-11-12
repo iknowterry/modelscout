@@ -9,6 +9,7 @@ handled here directly and never reach the model.
 
 Must never block or break the user's prompt: every failure path exits 0.
 """
+import importlib.util
 import json
 import re
 import sys
@@ -18,8 +19,26 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "skills" / "modelscout" / "scripts"
 PREFS = SCRIPTS / "prefs.py"
 SAVINGS = SCRIPTS / "savings.py"
-sys.path.insert(0, str(SCRIPTS))
-import prefs  # noqa: E402
+
+
+def _load(name, path):
+    """Load a sibling script by path under a private module name, so the
+    plugin never edits sys.path or claims a generic name like `prefs`."""
+    if name in sys.modules:
+        return sys.modules[name]
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+prefs = _load("modelscout_prefs", PREFS)
+
+
+def savings_text(days=30):
+    """The measured savings report, computed in-process."""
+    return _load("modelscout_savings", SAVINGS).text_report(days=days)
 
 ACK = {
     "yes", "y", "yep", "yeah", "ok", "okay", "k", "sure", "go", "go on", "go ahead",
@@ -138,7 +157,7 @@ def handle_command(cmd):
     c = re.sub(r"\s+mode$", "", c)
     try:
         if c in ("", "status", "show", "prefs", "settings"):
-            pass
+            return "ModelScout settings\n" + prefs.describe()
         elif c in prefs.MODES or c in prefs.LEGACY_MODES or c == "on":
             prefs.set_mode("auto" if c == "on" else c)
         elif c in ("quiet", "quiet receipts", "receipts mismatch-only"):
@@ -148,9 +167,7 @@ def handle_command(cmd):
         elif c == "reset":
             prefs.reset()
         elif c in ("savings", "saved", "report"):
-            import subprocess
-            r = subprocess.run([sys.executable, str(SAVINGS)], capture_output=True, text=True, timeout=20)
-            return r.stdout.strip() or "ModelScout: no savings data yet."
+            return savings_text().strip() or "ModelScout: no savings data yet."
         else:
             m = re.match(r"^(?:default\s+|always\s+)?(t[1-4])\s+(switch|stay|ask|clear)$", c) or \
                 re.match(r"^(?:always\s+)?(switch|stay|ask|clear)\s+(?:for\s+)?(t[1-4])$", c)

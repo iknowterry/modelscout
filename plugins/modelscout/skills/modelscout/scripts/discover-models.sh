@@ -41,8 +41,8 @@ fi
 
 GEMINI_KEY="${GEMINI_API_KEY:-${GOOGLE_API_KEY:-}}"
 if [ -n "$GEMINI_KEY" ]; then
-  curl -fsS --max-time 30 \
-    "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=${GEMINI_KEY}" \
+  curl -fsS --max-time 30 "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000" \
+    -H "x-goog-api-key: ${GEMINI_KEY}" \
     -o "${TMP}/gemini.json" || echo "warn: gemini models list failed" >&2
 fi
 

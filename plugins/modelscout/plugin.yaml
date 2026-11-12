@@ -1,0 +1,17 @@
+name: modelscout
+version: "0.3.7"
+manifest_version: 2
+api_version: 1
+description: >-
+  Shows a short card for each new task (tier, best-fit model from the models
+  you actually have, and why), then routes the work to a right-sized delegated
+  subagent, asks, or stays, per your defaults. Measures what that saved from
+  real session logs.
+author: iKnowTerry
+license: MIT
+homepage: https://github.com/iknowterry/modelscout
+tags: [models, routing, delegation, cost, subagents]
+requires_hermes: ">=0.23.0"
+provides_tools: []
+provides_hooks:
+  - pre_llm_call

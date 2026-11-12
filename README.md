@@ -268,24 +268,39 @@ That installs the skill. The hook script also understands Gemini's
 
 ### Hermes Agent (Nous Research)
 
+ModelScout is a native Hermes plugin (since v0.3.7). It registers:
+- a `pre_llm_call` hook that shows the card on each new task;
+- the `modelscout:modelscout` skill;
+- a `/modelscout` command (`status`, `savings`, `auto`, `ask`, `inform`, `off`, `T1 stay`, …).
+
+It passes `hermes plugins validate` and `hermes plugins doctor` on Hermes v0.23.0.
+
+Once it's listed in the Hermes plugin catalog:
+
 ```bash
-hermes skills install iknowterry/modelscout/plugins/modelscout/skills/modelscout
+hermes plugins install modelscout --enable
 ```
 
-Tested with Hermes v0.22.7: Hermes's security scan rates it SAFE, and the card
-and advice work right away. To get the card on every prompt, add the hook to
-`~/.hermes/config.yaml`. Clone the repo first, then approve the hook once when
-Hermes asks:
+Until then, install from a clone:
 
-```yaml
-hooks:
-  pre_llm_call:
-    - command: "~/modelscout/plugins/modelscout/hooks/proactive-check.sh"
+```bash
+git clone https://github.com/iknowterry/modelscout ~/modelscout && ln -s ~/modelscout/plugins/modelscout ~/.hermes/plugins/modelscout && hermes plugins enable modelscout
 ```
 
 Hermes gives subagents a model only through its delegation config. Per-task
 auto-routing therefore needs the `advanced-delegation` plugin's `model_map`.
 Without it, ModelScout recommends the model and tells you how to switch.
+
+<details><summary>Skill only, or the older shell hook</summary>
+
+- **Skill only:** `hermes skills install iknowterry/modelscout/plugins/modelscout/skills/modelscout`
+- **Shell hook:** the plugin replaces it. On older Hermes versions, add this to `~/.hermes/config.yaml`:
+  ```yaml
+  hooks:
+    pre_llm_call:
+      - command: "~/modelscout/plugins/modelscout/hooks/proactive-check.sh"
+  ```
+</details>
 
 ### Any other Agent Skills host
 
@@ -361,6 +376,7 @@ Full rules: [`heuristics.md`](plugins/modelscout/skills/modelscout/references/he
 
 - [x] **Savings report:** `modelscout: savings` (v0.3.0)
 - [x] Savings report for Hermes Agent sessions (v0.3.4)
+- [x] Native Hermes plugin: hook, skill and `/modelscout` command (v0.3.7)
 - [ ] Savings report for Codex and Gemini session logs
 - [ ] Azure OpenAI / Bedrock / Vertex key detection
 - [ ] `modelscout` CLI wrapper (`npx modelscout` → prints inventory + advice)

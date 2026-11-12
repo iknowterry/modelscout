@@ -19,6 +19,7 @@ time is invented.
 """
 import argparse
 import json
+import os
 import re
 import sys
 import time
@@ -26,7 +27,7 @@ from collections import defaultdict
 from pathlib import Path
 
 PROJECTS = Path.home() / ".claude" / "projects"
-HERMES_DB = Path.home() / ".hermes" / "state.db"
+HERMES_DB = Path(os.environ.get("HERMES_HOME") or Path.home() / ".hermes") / "state.db"
 CATALOG = Path.home() / ".claude" / "model-catalog.json"
 MARKER = re.compile(r"^\s*(⚡\s*)?modelscout\b", re.I)
 FAMILY_RANK = {"haiku": 1, "sonnet": 2, "opus": 3, "fable": 4, "mythos": 4}
@@ -275,6 +276,14 @@ def render_markdown(o, days):
         f"| Main-model budget freed | ≈ {fmt_tokens(d['main_equiv_tokens_saved'])} tokens |",
         f"| Subagent run time (measured) | {fmt_time(d['seconds'])} |",
     ])
+
+
+def text_report(days=30, include_all=False, markdown=False):
+    """Scan every source and return the rendered report (used by the Hermes plugin)."""
+    routes = scan(days, include_all) + scan_hermes(days, include_all)
+    o = report(routes, Prices())
+    o["hosts"] = sorted({r.get("host", "claude-code") for r in routes})
+    return render_markdown(o, days) if markdown else render_text(o, days)
 
 
 def main():

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.7] - 2026-11-12
+
+### Added
+- Native Hermes Agent plugin (`plugin.yaml` + `__init__.py`). It registers:
+  - the `pre_llm_call` card hook in-process (no `config.yaml` edit needed);
+  - the `modelscout:modelscout` skill;
+  - a `/modelscout` slash command.
+  Settings commands are answered without a model call. Passes `hermes plugins validate` and `hermes plugins doctor --ci` on Hermes v0.23.0
+- `plugins/modelscout/README.md`: plugin page text with full disclosures
+- `savings.py`: `text_report()` for in-process use; honours `HERMES_HOME`
+
+### Changed
+- The hook loads `prefs.py` / `savings.py` by path under private module names (no `sys.path` edits, no subprocess for `savings`)
+- `modelscout: status` now says "ModelScout settings" instead of "settings saved"
+- `discover-models.sh` sends the Gemini key in the `x-goog-api-key` header instead of the URL
+
 ## [0.3.6] - 2026-11-06
 
 ### Added
