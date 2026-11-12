@@ -44,6 +44,14 @@ STATES = ("pending", "ok", "weak", "error")
 TIERS = ("T1", "T2", "T3", "T4")
 PENDING_TTL = 86400  # summary ignores pending records older than a day
 _NEXT = {"pending": ("ok", "error"), "ok": ("weak",)}
+SAFE_MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/\[\]-]{0,79}")
+
+
+def clean_model(m):
+    """A model id only if it is plain id-shaped text, else None. Applied when
+    writing and again when reading, because these ids are printed by status and
+    summary and can reach a model's context."""
+    return m if isinstance(m, str) and SAFE_MODEL.fullmatch(m) else None
 _REASONS = (  # first match wins; "limit" before generic API-error text
     ("interrupt", re.compile(r"interrupt|aborted|cancel", re.I)),
     ("limit", re.compile(r"rate.?limit|usage limit|session limit|quota|\b429\b|hit your .{0,20}limit", re.I)),
@@ -101,7 +109,7 @@ def record(host, tier, model, status, why="", id=None):  # noqa: A002
     status = status if status in ("ok", "pending") else "error"
     rid = str(id)[:64] if id else secrets.token_hex(4)
     rec = {"id": rid, "ts": round(time.time()), "host": str(host or "")[:16],
-           "tier": tier if tier in TIERS else None, "model": (str(model)[:80] if model else None),
+           "tier": tier if tier in TIERS else None, "model": clean_model(model),
            "status": status}
     if status == "error":
         rec["why"] = _bucket(why) or "other"
@@ -115,8 +123,8 @@ def resolve(ref, status, model=None, why=""):
     if not cur or cur["status"] != "pending" or status not in ("ok", "error"):
         return False
     upd = {"ts": round(time.time()), "ref": cur["id"], "status": status}
-    if model:
-        upd["model"] = str(model)[:80]
+    if clean_model(model):
+        upd["model"] = model
     if status == "error":
         upd["why"] = _bucket(why) or "other"
     return _append(upd)
@@ -153,7 +161,7 @@ def read():
             cur["status"] = new
             if new != "weak":
                 cur["done"] = r.get("ts") or cur.get("done")
-            if r.get("model") and new != "weak":
+            if clean_model(r.get("model")) and new != "weak":
                 cur["model"] = r["model"]
             if new == "error":
                 cur["why"] = r.get("why") or "other"
@@ -167,8 +175,9 @@ def read():
             status = "error"
         if status not in ("ok", "pending", "error"):
             continue
-        row = {"id": rid, "ts": r.get("ts") or 0, "host": r.get("host"), "tier": r.get("tier"),
-               "model": r.get("model"), "status": status,
+        row = {"id": rid, "ts": r.get("ts") or 0, "host": r.get("host"),
+               "tier": r.get("tier") if r.get("tier") in TIERS else None,
+               "model": clean_model(r.get("model")), "status": status,
                "why": (r.get("why") or "other") if status == "error" else "",
                "done": None if status == "pending" else (r.get("ts") or 0)}
         by_id[rid] = row

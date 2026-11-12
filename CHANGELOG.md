@@ -30,6 +30,7 @@
 - Picks: the filter for dated snapshots and `-pro-N` models never matched (a regex typo); it now works, and also drops moving `-latest` aliases
 - Picks: an inventory whose models have no prices now falls back to the catalog instead of giving no picks
 - Security: model ids from the catalog and inventory are checked before they reach the prompt block; anything that is not plain id text is dropped
+- Security: model ids in the outcomes log get the same check, when written and again when read, so `status` and `outcomes` never print anything else
 - Security: `discover-models.sh` passes API keys to `curl` through owner-only header files, not command-line arguments
 - `discover-models.sh` refreshes the catalog through `catalog.py`, which validates it, instead of overwriting it with whatever came back
 - The hook no longer reads typed text such as "Set model to haiku…" as a model switch, and prefers a model named in the hook payload over the transcript guess
