@@ -12,6 +12,11 @@
   - `modelscout: catalog off` / `catalog on` turns the background refresh off or back on.
   - `modelscout: status` now shows the catalog's age.
 - Regression tests in `tests/test_catalog.py`
+- Outcome tracking, the first step toward routing that learns. ModelScout records whether each routed subagent got the job done, in `~/.claude/modelscout-outcomes.jsonl`. It stores the tier, model and status only, no goal text.
+  - Claude Code: a `PostToolUse` / `PostToolUseFailure` hook on the Agent tool. Background launches are skipped.
+  - Hermes: a new `subagent_stop` hook; the child's model is read from `state.db`.
+  - `modelscout: weak` marks the last result as poor, and the main model runs `outcomes.py weak` when it had to redo the work. `modelscout: outcomes` lists the outcomes per tier and model.
+- Routed subagents are now tagged with their tier: `ModelScout: T1 · <goal>`
 
 ### Fixed
 - The catalog fetch works on Python builds without root certificates (python.org builds on macOS): it falls back to `curl`

@@ -35,6 +35,7 @@ def _load(name, path):
 
 prefs = _load("modelscout_prefs", PREFS)
 catalog = _load("modelscout_catalog", SCRIPTS / "catalog.py")
+outcomes = _load("modelscout_outcomes", SCRIPTS / "outcomes.py")
 
 
 def savings_text(days=30):
@@ -160,7 +161,8 @@ SETTING_WORDS = {"", "status", "show", "prefs", "settings", "on", "quiet", "quie
                  "receipts mismatch-only", "loud", "loud receipts", "receipts always", "receipts on",
                  "reset", "savings", "saved", "report", "help",
                  "refresh", "update", "refresh catalog", "update catalog", "catalog",
-                 "catalog on", "catalog off", "auto-refresh on", "auto-refresh off"}
+                 "catalog on", "catalog off", "auto-refresh on", "auto-refresh off",
+                 "weak", "outcomes"}
 
 
 def _norm(cmd):
@@ -200,6 +202,14 @@ def handle_command(cmd, host=None):
             return "ModelScout settings\n" + prefs.describe() + "\n" + catalog.status() + off
         elif c in ("refresh", "update", "refresh catalog", "update catalog", "catalog"):
             return catalog_command(host)
+        elif c == "weak":
+            r = outcomes.mark_last_weak()
+            if r is None:
+                return "ModelScout: no routed subagent recorded yet."
+            return (f"ModelScout: noted — the last {r.get('tier') or ''} {r.get('model') or 'subagent'} "
+                    "result was weak. ModelScout learns from this.")
+        elif c == "outcomes":
+            return "ModelScout " + outcomes.summary()
         elif c in ("catalog on", "auto-refresh on", "catalog off", "auto-refresh off"):
             on = c.endswith(" on")
             prefs.set_catalog_auto_refresh(on)
@@ -218,7 +228,7 @@ def handle_command(cmd, host=None):
         else:
             m = TIER_CMD[0].match(c) or TIER_CMD[1].match(c)
             if not m:
-                return ("ModelScout commands: modelscout: auto | ask | inform | off | status | savings | refresh | reset | "
+                return ("ModelScout commands: modelscout: auto | ask | inform | off | status | savings | weak | refresh | reset | "
                         "quiet | loud | T1 switch|stay|ask|clear (same for T2–T4)")
             a, b = m.groups()
             tier, action = (a, b) if a.startswith("t") else (b, a)
@@ -231,7 +241,8 @@ def handle_command(cmd, host=None):
 RULES_CLAUDE = {
     "switch": """\
 switch → DO NOT ask; delegate now. Call the Agent tool with model="<best-fit>",
-  a description starting "ModelScout: " (savings tracking reads it), and a
+  a description starting "ModelScout: <Tier> · " (e.g. "ModelScout: T1 · rename
+  user_id"; savings and outcome tracking read it), and a
   self-contained brief (goal, exact files/paths, facts it needs from this
   conversation, constraints, what done looks like). Verify its result
   (diff/output) before reporting; if it is weak, redo it yourself and say so.
@@ -255,7 +266,8 @@ RULES_OTHER = {
     "switch": """\
 switch → if this host lets you start a subagent on a chosen model, delegate the
   task to the best-fit model now with a self-contained brief whose goal starts
-  with "ModelScout: " (savings tracking reads it), then verify the result.
+  with "ModelScout: <Tier> · " (e.g. "ModelScout: T1 · rename user_id"; savings
+  and outcome tracking read it), then verify the result.
   Hermes: call delegate_task and set the task's `option` to the model route
   whose description matches the tier (the routes listed in delegate_task are
   the user's own; their models are the real best-fit choices).
@@ -349,7 +361,8 @@ def build_block(prompt, transcript_path, eff, host, host_model=None):
     action_line = " ".join(f"{t}={a}" for t, a in actions.items())
     used = sorted(set(actions.values()), key=["switch", "ask", "stay"].index)
     table = RULES_CLAUDE if host == "claude" else RULES_OTHER
-    rules = "\n".join(table[a].replace("{prefs}", str(PREFS)) for a in used)
+    rules = "\n".join(table[a].replace("{prefs}", str(PREFS)).replace("{outcomes}", str(SCRIPTS / "outcomes.py"))
+                      for a in used)
     if host == "claude":
         fit = f"T1→haiku, T2→sonnet, T3→opus, T4→{TIER_MODEL['T4']}"
         settings = "/modelscout:prefs, or the user types"

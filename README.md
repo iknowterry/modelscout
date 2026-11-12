@@ -354,6 +354,7 @@ Everything lives in one portable plugin, [`plugins/modelscout/`](plugins/modelsc
 | [`references/heuristics.md`](plugins/modelscout/skills/modelscout/references/heuristics.md) | Host-agnostic brain: task tiers T1–T4, capability vetoes, price-band mapping, honesty rules, subscription fallback |
 | [`scripts/prefs.py`](plugins/modelscout/skills/modelscout/scripts/prefs.py), [`scripts/savings.py`](plugins/modelscout/skills/modelscout/scripts/savings.py) | Your switch/ask/stay defaults, and the measured savings report |
 | [`hooks/`](plugins/modelscout/hooks) | One prompt hook that speaks Claude Code, Codex and Gemini CLI, and shows the per-task card |
+| [`scripts/outcomes.py`](plugins/modelscout/skills/modelscout/scripts/outcomes.py) | Records whether each routed subagent got the job done (tier, model, status; no goal text). `modelscout: weak` flags a poor result |
 
 **Does the catalog stay current?** Yes, with no manual step. On Claude Code,
 Codex and Gemini CLI, when the catalog is more than 7 days old, the session-start

@@ -1,13 +1,56 @@
 {
   "hooks": {
     "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/session-start.sh\"" } ] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/session-start.sh\""
+          }
+        ]
+      }
     ],
     "UserPromptSubmit": [
-      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/proactive-check.sh\" --host=claude" } ] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/proactive-check.sh\" --host=claude"
+          }
+        ]
+      }
     ],
     "BeforeAgent": [
-      { "hooks": [ { "type": "command", "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/proactive-check.sh\" --host=gemini" } ] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/proactive-check.sh\" --host=gemini"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/post-tool.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}${extensionPath}/hooks/post-tool.sh\""
+          }
+        ]
+      }
     ]
   }
 }

@@ -74,7 +74,7 @@ injected. Then act according to what the host can do:
 
 | Host capability | switch | ask | stay |
 |---|---|---|---|
-| Subagents with a model choice (Claude Code Agent tool `model: haiku\|sonnet\|opus`) | Delegate now. Start the Agent `description` with `ModelScout:` and write a self-contained brief. Verify the result before reporting. | Popup (AskUserQuestion): run in subagent / stay / always subagent for this tier / always stay | Do it here |
+| Subagents with a model choice (Claude Code Agent tool `model: haiku\|sonnet\|opus`) | Delegate now. Start the Agent `description` with `ModelScout: <Tier> · ` (e.g. `ModelScout: T1 · rename user_id`) and write a self-contained brief. Verify the result before reporting; if it was weak, redo it and run `python3 scripts/outcomes.py weak`. | Popup (AskUserQuestion): run in subagent / stay / always subagent for this tier / always stay | Do it here |
 | Can only advise (Codex, Gemini CLI, Hermes without a delegation model map, chat apps) | Give the exact switch command or model-picker step and continue on the current model | Numbered choices in text, then wait for the answer | Do it here |
 
 - Routing works up-tier as well as down: a T3 task in an economy-model session
@@ -92,7 +92,7 @@ When the user asks how much ModelScout saved, run `python3 scripts/savings.py`
 (add `--days 7` to change the window, `--markdown` for a table). It reads
 Claude Code transcripts and Hermes Agent's session database (read-only), and
 measures every subagent whose task description starts with `ModelScout:`.
-On other hosts, start the delegated task's goal with `ModelScout:` too. It reports:
+On other hosts, start the delegated task's goal with `ModelScout: <Tier> · ` too. It reports:
 - tokens handled by the lighter model, counted from the subagent's own log
 - the cost-weighted percentage saved versus the main model, which for
   subscribers is the share of usage-limit quota freed
@@ -100,6 +100,17 @@ On other hosts, start the delegated task's goal with `ModelScout:` too. It repor
 
 Always show the report's own assumption line. `--all` counts every lighter
 subagent, including ones ModelScout didn't route.
+
+### Outcomes
+
+ModelScout also records whether each routed subagent got the job done, in
+`~/.claude/modelscout-outcomes.jsonl`: tier, model and status only, no goal text.
+- Claude Code's Agent-tool hook and Hermes's `subagent_stop` hook record
+  completed and failed runs on their own.
+- When you had to redo a subagent's work, run `python3 scripts/outcomes.py weak`.
+  The user can say `modelscout: weak` for the same thing.
+- `modelscout: outcomes` (or `python3 scripts/outcomes.py`) lists them per tier
+  and model.
 
 ## Step 5: Suggest a permission mode (Claude Code, optional)
 
