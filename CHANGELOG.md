@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- The card instructions now tell the model to run `outcomes.py weak` when it had to redo a routed subagent's work. In 0.3.9 only `SKILL.md` said so, and the block tells the model not to load the skill, so weak results were only recorded when you typed `modelscout: weak`
+
 ## [0.3.9] - 2026-11-12
 
 ### Added

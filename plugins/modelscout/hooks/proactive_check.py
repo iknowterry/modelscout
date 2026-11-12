@@ -255,7 +255,8 @@ switch → DO NOT ask; delegate now. Call the Agent tool with model="<best-fit>"
   user_id"; savings and outcome tracking read it), and a
   self-contained brief (goal, exact files/paths, facts it needs from this
   conversation, constraints, what done looks like). Verify its result
-  (diff/output) before reporting; if it is weak, redo it yourself and say so.
+  (diff/output) before reporting; if it is weak, redo it yourself, say so, and
+  run: python3 "{outcomes}" weak   (ModelScout learns from it).
   Separable parts: one right-sized subagent per part. Up-tier works too
   (T3 task on a Haiku/Sonnet session → an "opus" subagent).
   Keep the work here (card line 3: "Doing it here — <reason>") only for a
@@ -277,7 +278,9 @@ RULES_OTHER = {
 switch → if this host lets you start a subagent on a chosen model, delegate the
   task to the best-fit model now with a self-contained brief whose goal starts
   with "ModelScout: <Tier> · " (e.g. "ModelScout: T1 · rename user_id"; savings
-  and outcome tracking read it), then verify the result.
+  and outcome tracking read it), then verify the result. If it is weak, redo
+  it yourself, say so, and if you can run commands run:
+  python3 "{outcomes}" weak   (ModelScout learns from it).
   Hermes: call delegate_task and set the task's `option` to the model route
   whose description matches the tier (the routes listed in delegate_task are
   the user's own; their models are the real best-fit choices).

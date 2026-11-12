@@ -300,5 +300,17 @@ class CrossHost(unittest.TestCase):
         self.assertEqual(len(notes), 2)
 
 
+class WeakInstruction(unittest.TestCase):
+    """The block must tell the model how to report a weak result, or nothing is ever learned."""
+
+    def test_switch_rules_name_the_weak_command(self):
+        eff = dict(pc.prefs.effective(), mode="auto", defaults={})
+        for host, model in (("claude", "claude-fable-5-2"), ("hermes", "gpt-6-sol"), ("codex", None)):
+            with self.subTest(host=host):
+                b = pc.build_block("rename the field everywhere", None, eff, host, model)
+                self.assertIn('outcomes.py" weak', b)
+                self.assertNotIn("{outcomes}", b)
+
+
 if __name__ == "__main__":
     unittest.main()
