@@ -152,9 +152,35 @@ def model_class(model_id):
     return None, None
 
 
+CMD_PREFIX = re.compile(r"^\s*modelscout\s*:\s*(.*)$", re.I | re.S)
+TIER_CMD = (re.compile(r"^(?:default\s+|always\s+)?(t[1-4])\s+(switch|stay|ask|clear)$"),
+            re.compile(r"^(?:always\s+)?(switch|stay|ask|clear)\s+(?:for\s+)?(t[1-4])$"))
+SETTING_WORDS = {"", "status", "show", "prefs", "settings", "on", "quiet", "quiet receipts",
+                 "receipts mismatch-only", "loud", "loud receipts", "receipts always", "receipts on",
+                 "reset", "savings", "saved", "report", "help"}
+
+
+def _norm(cmd):
+    return re.sub(r"\s+mode$", "", re.sub(r"[\s.!]+$", "", cmd.strip().lower()))
+
+
+def parse_command(prompt):
+    """The settings command in a "modelscout: <setting>" prompt, or None.
+
+    Only recognised settings count. Anything else, such as a delegated goal
+    "ModelScout: rename the field…", is a normal prompt and must run."""
+    m = CMD_PREFIX.match(prompt or "")
+    if not m:
+        return None
+    c = _norm(m.group(1))
+    if (c in SETTING_WORDS or c in prefs.MODES or c in prefs.LEGACY_MODES
+            or any(rx.match(c) for rx in TIER_CMD)):
+        return c
+    return None
+
+
 def handle_command(cmd):
-    c = cmd.strip().lower()
-    c = re.sub(r"\s+mode$", "", c)
+    c = _norm(cmd)
     try:
         if c in ("", "status", "show", "prefs", "settings"):
             return "ModelScout settings\n" + prefs.describe()
@@ -169,8 +195,7 @@ def handle_command(cmd):
         elif c in ("savings", "saved", "report"):
             return savings_text().strip() or "ModelScout: no savings data yet."
         else:
-            m = re.match(r"^(?:default\s+|always\s+)?(t[1-4])\s+(switch|stay|ask|clear)$", c) or \
-                re.match(r"^(?:always\s+)?(switch|stay|ask|clear)\s+(?:for\s+)?(t[1-4])$", c)
+            m = TIER_CMD[0].match(c) or TIER_CMD[1].match(c)
             if not m:
                 return ("ModelScout commands: modelscout: auto | ask | inform | off | status | savings | reset | "
                         "quiet | loud | T1 switch|stay|ask|clear (same for T2–T4)")
@@ -346,9 +371,9 @@ def main():
         return
     prompt = prompt.strip()
 
-    m = re.match(r"^\s*modelscout\s*:\s*(.*)$", prompt, re.I | re.S)
-    if m:
-        result = handle_command(m.group(1))
+    cmd = parse_command(prompt)
+    if cmd is not None:
+        result = handle_command(cmd)
         if host == "gemini":
             emit_context(event, "Relay this to the user verbatim and do nothing else:\n" + result)
         else:

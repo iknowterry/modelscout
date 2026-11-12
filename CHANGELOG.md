@@ -16,6 +16,11 @@
 - `modelscout: status` now says "ModelScout settings" instead of "settings saved"
 - `discover-models.sh` sends the Gemini key in the `x-goog-api-key` header instead of the URL
 
+### Fixed
+- Only recognised settings (`auto`, `status`, `T1 stay`…) count as `modelscout:` commands. Before, a delegated goal such as "ModelScout: rename the field…" was blocked as a settings command, so the routed task never ran (all hosts)
+- Hermes: a `subagent_start` hook marks delegated children, so a child never gets a card or re-routes the task it was given
+- Regression tests in `tests/test_commands.py`
+
 ## [0.3.6] - 2026-11-06
 
 ### Added

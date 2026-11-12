@@ -46,6 +46,7 @@ Picks come from the models your own keys and subscriptions reach, priced live fr
 | Surface | What it does |
 |---|---|
 | `pre_llm_call` hook | Adds the card instructions to new, substantial prompts. Answers `modelscout: …` settings commands itself, blocking the turn so it makes no model call. |
+| `subagent_start` hook | Marks delegated children, so a child never gets a card or re-routes the task it was given. |
 | `/modelscout` command | `status`, `savings`, `auto`, `ask`, `inform`, `off`, `reset`, and per-tier defaults such as `T1 stay` or `T3 switch` |
 | `modelscout:modelscout` skill | The full recommendation logic: tiers, price bands, honesty rules, savings report |
 
