@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.8] - 2026-11-12
+
+First end-to-end run on a real Hermes setup (`gpt-6-sol` on a Codex subscription, `advanced-delegation` model routes): a T1 rename was routed to a `gpt-6-luna` child on the `light` route and verified by the main model.
+
+### Fixed
+- Savings: Hermes children were never counted, because Hermes titles them `Subagent: ModelScout: …` and the scan only checked the title start. It now checks the cleaned title and the child's goal. Regression test in `tests/test_savings_hermes.py`
+- Hermes: the card instructions now point the model at the `delegate_task` model routes (`option`) instead of "see the modelscout skill", which sent it off to load the skill, read config files and run scripts first
+- Hermes: price-band picks now follow the current model's provider (OpenAI, Anthropic or Gemini) instead of giving none
+- T4 pick is now the newest frontier-priced model, not simply the most expensive (which picked old `-pro` models)
+- On non-Claude hosts the card goes at the top of the final reply when the model calls tools before writing any text
+
 ## [0.3.7] - 2026-11-12
 
 ### Added

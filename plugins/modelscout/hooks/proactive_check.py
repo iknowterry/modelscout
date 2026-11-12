@@ -232,12 +232,17 @@ stay → do it here. Card line 3: "Staying on <current> (your <Tier> default)"."
 
 RULES_OTHER = {
     "switch": """\
-switch → if this host lets you start a subagent on a chosen model (Hermes:
-  delegate_task with a model_map route), delegate the task to the best-fit model
-  with a self-contained brief whose goal starts with "ModelScout: " (savings
-  tracking reads it), and verify the result.
-  Otherwise give the exact command to switch (e.g. "/model <id>") on card line 3
-  and continue on the current model without waiting.""",
+switch → if this host lets you start a subagent on a chosen model, delegate the
+  task to the best-fit model now with a self-contained brief whose goal starts
+  with "ModelScout: " (savings tracking reads it), then verify the result.
+  Hermes: call delegate_task and set the task's `option` to the model route
+  whose description matches the tier (the routes listed in delegate_task are
+  the user's own; their models are the real best-fit choices).
+  Keep the work here (card line 3: "Doing it here — <reason>") only for a
+  1–2 tool-call job, destructive/outward-facing steps, or work that needs the
+  user's answers mid-way. With no way to pick a model, give the exact command
+  to switch (e.g. "/model <id>") on card line 3 and continue on the current
+  model without waiting.""",
     "ask": """\
 ask → end the card with: "Reply 1 = switch to <Best-fit>, 2 = stay, 3 = always
   switch for <Tier>, 4 = always stay for <Tier>" and wait for the answer. For 3/4
@@ -254,9 +259,27 @@ def load_json(path):
         return {}
 
 
-def provider_picks(host):
-    """Best-fit model per tier for non-Claude hosts, from inventory or catalog price bands."""
-    prov = {"codex": ("openai", "openai"), "gemini": ("gemini", "google")}.get(host)
+PROVIDER_KEYS = {"openai": ("openai", "openai"), "anthropic": ("anthropic", "anthropic"),
+                 "gemini": ("gemini", "google")}
+
+
+def model_provider(model_id):
+    """Provider family of a model id such as "gpt-6-sol" or "anthropic/claude-opus-5"."""
+    m = (model_id or "").lower().rsplit("/", 1)[-1]
+    if re.match(r"(gpt|o\d|chatgpt)", m):
+        return "openai"
+    if m.startswith("claude"):
+        return "anthropic"
+    if m.startswith("gemini"):
+        return "gemini"
+    return None
+
+
+def provider_picks(host, host_model=None):
+    """Best-fit model per tier for non-Claude hosts, from inventory or catalog price bands.
+    Hermes can run any provider, so it uses the current model's provider."""
+    key = {"codex": "openai", "gemini": "gemini"}.get(host) or model_provider(host_model)
+    prov = PROVIDER_KEYS.get(key)
     if not prov:
         return None
     inv = load_json("~/.claude/model-inventory.json").get("providers", {}).get(prov[0], {}).get("models")
@@ -289,8 +312,9 @@ def provider_picks(host):
         if inband:
             picks[t] = max(inband, key=by_new)[0]
     top = max(recent, key=lambda m: (m[1], m[2]))
+    frontier = [m for m in recent if m[1] > 20]
     picks.setdefault("T3", top[0])
-    picks["T4"] = top[0]
+    picks["T4"] = max(frontier, key=by_new)[0] if frontier else top[0]
     return picks
 
 
@@ -311,12 +335,21 @@ def build_block(prompt, transcript_path, eff, host, host_model=None):
         own = ("You cannot switch your own session model; for repeated work of one tier "
                "you may add \"tip: pick <Model> in the model menu\".")
     else:
-        picks = provider_picks(host)
+        picks = provider_picks(host, host_model)
         fit = (", ".join(f"{t}→{m}" for t, m in sorted(picks.items())) + " (price-band picks; "
                "prefer models the user actually has)") if picks else \
-            "the cheapest model the user has whose price band fits the tier (see the modelscout skill)"
+            "the cheapest model the user has whose price band fits the tier"
+        if host == "hermes":
+            fit = ("the delegate_task model route (`option`) whose description fits the tier, "
+                   "if routes are offered; else " + fit)
         settings = "the user types"
         own = ""
+    selfcontained = ("" if host == "claude" else
+                     "\nThis block is self-contained: don't load the modelscout skill, read config "
+                     "files or run scripts just to show the card or pick a route.")
+    final_card = ("" if host == "claude" else
+                  "\n   If you call tools before writing any text, put the card at the very top "
+                  "of your final reply instead, so the user always sees it.")
     receipt = ("If the model FITS, show one quote line: > `🔭 ModelScout` **<Tier> <tier name>** · `<Model>` fits — doing it here"
                if eff["receipts"] == "always" else
                "If the model FITS, show nothing — just do the work.")
@@ -332,11 +365,11 @@ guess: the model id in your own system prompt always wins.
    > `🔭 ModelScout` **<Tier> <tier name>** · <the task in 5–8 words>
    > Best fit: `<Model>` — <why, one clause> · <quota/cost vs current, e.g. "~1/5 of Opus">
    > → ⚡ <what happens next>
-   {receipt}
+   {receipt}{final_card}
 3. On a mismatch, act per on-mismatch for the tier you chose:
 {rules}
 {own}
-Settings: {settings} "modelscout: auto|ask|inform|off|savings|T1 stay".
+Settings: {settings} "modelscout: auto|ask|inform|off|savings|T1 stay".{selfcontained}
 </modelscout>"""
 
 

@@ -183,8 +183,11 @@ def scan_hermes(days, include_all, db=HERMES_DB):
         for sid, cmodel, pmodel, start, end, title, ti, to, tcr, tcw in rows:
             first = con.execute("SELECT content FROM messages WHERE session_id = ? AND role = 'user' "
                                 "ORDER BY rowid LIMIT 1", (sid,)).fetchone()
-            desc = title or (first[0] if first and isinstance(first[0], str) else "")
-            if not include_all and not (MARKER.match(title or "") or MARKER.match(desc or "")):
+            goal = first[0] if first and isinstance(first[0], str) else ""
+            # Hermes titles children "Subagent: <goal>"; the goal itself is the first user message.
+            clean_title = re.sub(r"^\s*subagent\s*:\s*", "", title or "", flags=re.I)
+            desc = goal or clean_title
+            if not include_all and not (MARKER.match(clean_title) or MARKER.match(goal)):
                 continue
             usage_rows = con.execute(
                 "SELECT model, SUM(input_tokens), SUM(output_tokens), SUM(cache_read_tokens), "
