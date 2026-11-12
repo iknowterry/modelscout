@@ -4,6 +4,7 @@
 Append-only JSONL in ~/.claude/modelscout-outcomes.jsonl. Two kinds of line:
   outcome  {"id","ts","host","tier","model","status"[,"why"]}
   update   {"ts","ref","status"[,"model"][,"why"]}   folds into the outcome `ref`
+  marker   {"ts","reset":true}   read() ignores every line written before the latest one
 Only ids, timestamps, host, tier, model, status and a coarse reason bucket are
 stored: never goal text, prompts, output, error text or transcript paths.
 
@@ -24,6 +25,7 @@ reads as weak.
 
 Usage:
   outcomes.py weak       # mark the latest finished result as weak
+  outcomes.py forget     # start learning fresh (history stays on disk)
   outcomes.py summary    # outcomes per tier and model
 """
 import json
@@ -135,6 +137,10 @@ def read():
             continue
         if not isinstance(r, dict):
             continue
+        if r.get("reset") is True:  # forget(): learning starts fresh after the latest marker
+            out.clear()
+            by_id.clear()
+            continue
         if r.get("ref") is not None:
             cur = by_id.get(r.get("ref"))
             if cur is None:
@@ -200,12 +206,46 @@ def mark_last_weak(why="weak"):
     return last
 
 
-def weak_rate(tier, model=None, last=20):
+def weak_rate(tier, model=None, last=20, days=None):
     """(n_finished, n_weak) over the `last` most recently finished (ok + weak)
-    outcomes for `tier` (and `model`, if given). Errors and pending never count."""
-    fin = [r for r in _finished(read()) if r.get("tier") == tier and (model is None or r.get("model") == model)]
+    outcomes for `tier` (and `model`, if given), within `days` if given. Errors
+    and pending never count."""
+    cut = time.time() - days * 86400 if days else None
+    fin = [r for r in _finished(read()) if r.get("tier") == tier and (model is None or r.get("model") == model)
+           and (cut is None or (r.get("done") or 0) >= cut)]
     fin = fin[-last:] if last else fin
     return len(fin), sum(r["status"] == "weak" for r in fin)
+
+
+def avoided(days=30, last=20, min_n=3, rate=0.4):
+    """Learned routing: every (tier, model) whose finished results from the last
+    `days` days (at most the `last` newest) number >= min_n with >= `rate` weak.
+    Sorted by tier, model. Expires by itself as weak results age out."""
+    if not OUTCOMES.exists():
+        return []
+    cut = time.time() - days * 86400
+    groups = {}
+    for r in _finished(read()):
+        if r.get("tier") and r.get("model") and (r.get("done") or 0) >= cut:
+            groups.setdefault((r["tier"], r["model"]), []).append(r)
+    out = []
+    for (tier, model), rs in sorted(groups.items()):
+        rs = rs[-last:] if last else rs
+        w = sum(r["status"] == "weak" for r in rs)
+        if len(rs) >= min_n and w and w >= rate * len(rs) - 1e-9:
+            out.append({"tier": tier, "model": model, "n": len(rs), "weak": w})
+    return out
+
+
+def learned_lines(av=None):
+    """One "  learned: ..." line per avoidance (shared by summary and status)."""
+    av = avoided() if av is None else av
+    return [f"  learned: {a['tier']} avoids {a['model']} ({a['weak']} of {a['n']} recent results weak)" for a in av]
+
+
+def forget():
+    """Append a reset marker: learning starts fresh, history stays on disk."""
+    return _append({"ts": round(time.time()), "reset": True})
 
 
 def clear():
@@ -231,6 +271,7 @@ def summary():
         fin = a["ok"] + a["weak"]
         if fin or a["error"]:
             lines.append(f"  {tier} {model}: {fin} finished, {a['weak']} weak, {a['error']} errors")
+    lines.extend(learned_lines())
     lines.append("  Only weak results count against a model; errors (limits, outages, denials, interrupts) are neutral.")
     return "\n".join(lines)
 
@@ -241,6 +282,10 @@ def main(argv):
         r = mark_last_weak()
         print("ModelScout: no finished routed subagent recorded yet." if r is None else
               f"ModelScout: noted — the last {r.get('tier') or ''} {r.get('model') or 'subagent'} result was weak.")
+        return 0
+    if cmd == "forget":
+        forget()
+        print("ModelScout: learned adjustments cleared.")
         return 0
     print(summary())
     return 0

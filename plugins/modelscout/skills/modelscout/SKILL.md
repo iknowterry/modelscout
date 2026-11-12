@@ -5,7 +5,7 @@ license: MIT
 compatibility: Works in any Agent Skills host (Claude Code, Codex, ChatGPT, Gemini CLI, Hermes Agent, claude.ai). Scripts need python3 and bash; auto-routing needs a host that can start subagents on a chosen model.
 metadata:
   author: iKnowTerry
-  version: "0.3.8"
+  version: "0.3.9"
   homepage: https://github.com/iknowterry/modelscout
 ---
 
@@ -114,6 +114,10 @@ ModelScout also records how each routed subagent ended, in
   but neutral: it says nothing about the model's quality.
 - `modelscout: outcomes` (or `python3 scripts/outcomes.py`) lists them per tier
   and model.
+- **Learning:** when 40% or more of a model's recent finished results for a
+  tier are weak (at least 3, last 30 days), ModelScout routes that tier one
+  step up. The hook's block shows it as a "Learned:" line; follow it.
+  `modelscout: forget` clears it.
 
 ## Step 5: Suggest a permission mode (Claude Code, optional)
 

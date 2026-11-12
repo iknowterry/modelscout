@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.9] - 2026-11-12
 
 ### Added
 - The model catalog keeps itself fresh. New models and prices show up with no manual step.
@@ -18,6 +18,10 @@
   - Hermes: a new `subagent_stop` hook; the child's model is read from `state.db`.
   - `modelscout: weak` marks the last finished result as poor, and the main model runs `outcomes.py weak` when it had to redo the work. `modelscout: outcomes` lists the outcomes per tier and model.
 - Routed subagents are now tagged with their tier: `ModelScout: T1 · <goal>`
+- Routing that learns from those outcomes. When a model's recent results for a tier are weak (at least 3 finished in the last 30 days, 40% or more weak, counting the 20 most recent), that tier moves one step up, for example T1 from Haiku to Sonnet. The card instructions say why in one "Learned:" line, and `modelscout: status` lists it.
+  - It is keyed by tier and model, so errors never trigger it, and it expires on its own after 30 days so the cheaper model gets another try.
+  - On Hermes, where routing uses your own named routes, the line tells the model which route's model to avoid.
+  - `modelscout: forget` clears what was learned; `modelscout: reset` does too.
 
 ### Fixed
 - The catalog fetch works on Python builds without root certificates (python.org builds on macOS): it falls back to `curl`

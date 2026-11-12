@@ -2,7 +2,7 @@
 
 # ModelScout
 
-ModelScout knows which AI models you actually have, picks the right one for each task, and proves what that saved. It is the same open package across Hermes Agent, Claude Code, Codex, ChatGPT desktop and Gemini CLI. Full docs: [github.com/iknowterry/modelscout](https://github.com/iknowterry/modelscout).
+ModelScout knows which AI models you actually have, picks the right one for each task, and proves what that saved. Light work stops spending frontier-model tokens, so API costs drop and subscription usage limits last longer. It is the same open package across Hermes Agent, Claude Code, Codex, ChatGPT desktop and Gemini CLI. Full docs: [github.com/iknowterry/modelscout](https://github.com/iknowterry/modelscout).
 
 ## Install
 
@@ -48,7 +48,7 @@ Picks come from the models your own keys and subscriptions reach, priced live fr
 | `pre_llm_call` hook | Adds the card instructions to new, substantial prompts. Answers `modelscout: …` settings commands itself, blocking the turn so it makes no model call. |
 | `subagent_start` hook | Marks delegated children, so a child never gets a card or re-routes the task it was given. |
 | `subagent_stop` hook | Records how each ModelScout-routed child ended (tier, model from `state.db`, status). No goal text. |
-| `/modelscout` command | `status` (settings and catalog age), `savings`, `weak`, `outcomes`, `refresh`, `auto`, `ask`, `inform`, `off`, `reset`, and per-tier defaults such as `T1 stay` or `T3 switch` |
+| `/modelscout` command | `status` (settings and catalog age), `savings`, `weak`, `outcomes`, `forget`, `refresh`, `auto`, `ask`, `inform`, `off`, `reset`, and per-tier defaults such as `T1 stay` or `T3 switch` |
 | `modelscout:modelscout` skill | The full recommendation logic: tiers, price bands, honesty rules, savings report |
 
 No tools, no middleware, no Python dependencies.
@@ -60,6 +60,7 @@ Type `modelscout: <setting>` in a prompt or `/modelscout <setting>`:
 - **Per-tier defaults:** for example `T1 switch`, `T3 stay`. A per-tier default beats the mode.
 - **Savings:** `savings` prints the measured report. It counts delegated child sessions whose goal starts with `ModelScout:` (the card asks for `ModelScout: <Tier> · <goal>`), using their own token usage, cost-weighted, with every price named.
 - **Outcomes:** the `subagent_stop` hook records how each routed child ended: tier, model and status only, in `~/.claude/modelscout-outcomes.jsonl`. `weak` marks the last finished one as a poor result, the only status that counts against a model. Failed and interrupted runs are recorded as neutral errors. `outcomes` lists them.
+- **Learning:** when a model's recent results for a tier are weak (at least 3 finished in 30 days, 40% or more weak), that tier is routed one step up until the weak results age out. `forget` clears it.
 
 ## Disclosures
 

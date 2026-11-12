@@ -167,7 +167,7 @@ SETTING_WORDS = {"", "status", "show", "prefs", "settings", "on", "quiet", "quie
                  "reset", "savings", "saved", "report", "help",
                  "refresh", "update", "refresh catalog", "update catalog", "catalog",
                  "catalog on", "catalog off", "auto-refresh on", "auto-refresh off",
-                 "weak", "outcomes"}
+                 "weak", "outcomes", "forget"}
 
 
 def _norm(cmd):
@@ -204,7 +204,8 @@ def handle_command(cmd, host=None):
     try:
         if c in ("", "status", "show", "prefs", "settings"):
             off = "" if host == "hermes" or prefs.catalog_auto_refresh() else " · auto-refresh off"
-            return "ModelScout settings\n" + prefs.describe() + "\n" + catalog.status() + off
+            return ("ModelScout settings\n" + prefs.describe() + "\n" + catalog.status() + off
+                    + "".join("\n" + ln for ln in outcomes.learned_lines()))
         elif c in ("refresh", "update", "refresh catalog", "update catalog", "catalog"):
             return catalog_command(host)
         elif c == "weak":
@@ -213,6 +214,9 @@ def handle_command(cmd, host=None):
                 return "ModelScout: no routed subagent recorded yet."
             return (f"ModelScout: noted — the last {r.get('tier') or ''} {r.get('model') or 'subagent'} "
                     "result was weak. ModelScout learns from this.")
+        elif c == "forget":
+            outcomes.forget()
+            return "ModelScout: learned adjustments cleared."
         elif c == "outcomes":
             return "ModelScout " + outcomes.summary()
         elif c in ("catalog on", "auto-refresh on", "catalog off", "auto-refresh off"):
@@ -228,12 +232,13 @@ def handle_command(cmd, host=None):
             prefs.set_receipts("always")
         elif c == "reset":
             prefs.reset()
+            outcomes.forget()
         elif c in ("savings", "saved", "report"):
             return savings_text().strip() or "ModelScout: no savings data yet."
         else:
             m = TIER_CMD[0].match(c) or TIER_CMD[1].match(c)
             if not m:
-                return ("ModelScout commands: modelscout: auto | ask | inform | off | status | savings | weak | refresh | reset | "
+                return ("ModelScout commands: modelscout: auto | ask | inform | off | status | savings | weak | forget | refresh | reset | "
                         "quiet | loud | T1 switch|stay|ask|clear (same for T2–T4)")
             a, b = m.groups()
             tier, action = (a, b) if a.startswith("t") else (b, a)
@@ -387,6 +392,40 @@ def provider_picks(host, host_model=None):
     return picks
 
 
+def learned_bumps(picks, av=None, exact=False, keep=None):
+    """Learned routing. `picks` maps tier -> the model it would use (aliases on
+    Claude, catalog ids elsewhere). A T1-T3 pick that is avoided for its tier
+    takes the next tier's pick (one step, from the original picks, never T4).
+    Avoided models that matched no pick get a "use the next stronger route" note,
+    limited by `keep(model_id)` to models this host could route to (outcomes are
+    shared across hosts, so a Hermes model must not show up in a Claude block).
+    Returns (adjusted picks, notes); never raises, and returns the picks unchanged
+    on any failure."""
+    try:
+        av = outcomes.avoided() if av is None else av
+        av = [a for a in av if a.get("tier") in ("T1", "T2", "T3") and safe_id(a.get("model"))]
+        if not av:
+            return picks, []
+        hit = lambda p, m: bool(p) and (p == m if exact else p.lower() in m.lower() or m.lower() in p.lower())
+        out, bumps, used = dict(picks), [], set()
+        for t, nxt in (("T1", "T2"), ("T2", "T3"), ("T3", "T4")):
+            p, new = picks.get(t), picks.get(nxt)
+            a = next((a for a in av if a["tier"] == t and hit(p, a["model"])), None)
+            if a is None or not new or new == p:
+                continue
+            if not exact and p.lower() in new.lower() and " (" in new:  # "fable (if available, else opus)"
+                new = new.split(" (")[0]
+            out[t] = new
+            used.add(id(a))
+            bumps.append(f"{t} → {new}, not {p} ({int(a['weak'])} of {int(a['n'])} recent {t} results on "
+                         f"{a['model']} were weak)")
+        rest = [f"{a['tier']}: avoid {a['model']}, use the next stronger route ({int(a['weak'])} of "
+                f"{int(a['n'])} recent {a['tier']} results on it were weak)" for a in av if id(a) not in used and (keep is None or keep(a["model"]))]
+        return out, bumps + rest
+    except Exception:  # noqa: BLE001 - learning must never break the block
+        return picks, []
+
+
 def build_block(prompt, transcript_path, eff, host, host_model=None):
     tier_hint, basis = guess_tier(prompt)
     model_id = safe_id(host_model)
@@ -402,12 +441,18 @@ def build_block(prompt, transcript_path, eff, host, host_model=None):
     rules = "\n".join(table[a].replace("{prefs}", str(PREFS)).replace("{outcomes}", str(SCRIPTS / "outcomes.py"))
                       for a in used)
     if host == "claude":
-        fit = f"T1→haiku, T2→sonnet, T3→opus, T4→{TIER_MODEL['T4']}"
+        picks, learned = learned_bumps({"T1": "haiku", "T2": "sonnet", "T3": "opus", "T4": TIER_MODEL["T4"]},
+                                       keep=lambda m: model_class(m)[0] is not None)
+        fit = ", ".join(f"{t}→{m}" for t, m in picks.items())
         settings = "/modelscout:prefs, or the user types"
         own = ("You cannot switch your own session model; for repeated work of one tier "
                "you may add \"tip: pick <Model> in the model menu\".")
     else:
         picks = provider_picks(host, host_model)
+        own_prov = {"codex": "openai", "gemini": "gemini"}.get(host)  # Hermes can route to any provider
+        adj, learned = learned_bumps(picks or {}, exact=True,
+                                     keep=(lambda m: model_provider(m) == own_prov) if own_prov else None)
+        picks = adj if picks else None
         fit = (", ".join(f"{t}→{m}" for t, m in sorted(picks.items())) + " (price-band picks; "
                "prefer models the user actually has)") if picks else \
             "the cheapest model the user has whose price band fits the tier"
@@ -422,6 +467,7 @@ def build_block(prompt, transcript_path, eff, host, host_model=None):
     final_card = ("" if host == "claude" else
                   "\n   If you call tools before writing any text, put the card at the very top "
                   "of your final reply instead, so the user always sees it.")
+    learned_line = f"\n   Learned: {'; '.join(learned)}." if learned else ""
     receipt = ("If the model FITS, show one quote line: > `🔭 ModelScout` **<Tier> <tier name>** · `<Model>` fits — doing it here"
                if eff["receipts"] == "always" else
                "If the model FITS, show nothing — just do the work.")
@@ -431,7 +477,7 @@ substantial task — skip for follow-ups ("yes", "continue"), quick questions an
 chit-chat. tier-hint is a keyword guess (reclassify it) and current-model is a
 guess: the model id in your own system prompt always wins.
 1. Tier the task: T1 mechanical, T2 standard, T3 hard reasoning, T4 frontier.
-   Best fit: {fit}.
+   Best fit: {fit}.{learned_line}
 2. Show this card FIRST, in the user's language, as a Markdown quote block
    (keep the backticks and bold exactly; they make it stand out), max 3 lines:
    > `🔭 ModelScout` **<Tier> <tier name>** · <the task in 5–8 words>

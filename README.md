@@ -354,7 +354,7 @@ Everything lives in one portable plugin, [`plugins/modelscout/`](plugins/modelsc
 | [`references/heuristics.md`](plugins/modelscout/skills/modelscout/references/heuristics.md) | Host-agnostic brain: task tiers T1–T4, capability vetoes, price-band mapping, honesty rules, subscription fallback |
 | [`scripts/prefs.py`](plugins/modelscout/skills/modelscout/scripts/prefs.py), [`scripts/savings.py`](plugins/modelscout/skills/modelscout/scripts/savings.py) | Your switch/ask/stay defaults, and the measured savings report |
 | [`hooks/`](plugins/modelscout/hooks) | One prompt hook that speaks Claude Code, Codex and Gemini CLI, and shows the per-task card |
-| [`scripts/outcomes.py`](plugins/modelscout/skills/modelscout/scripts/outcomes.py) | Records whether each routed subagent got the job done (tier, model, status; no goal text). `modelscout: weak` flags a poor result |
+| [`scripts/outcomes.py`](plugins/modelscout/skills/modelscout/scripts/outcomes.py) | Records whether each routed subagent got the job done (tier, model, status; no goal text). `modelscout: weak` flags a poor result, and a tier whose model keeps getting flagged is routed one step up |
 
 **Does the catalog stay current?** Yes, with no manual step. On Claude Code,
 Codex and Gemini CLI, when the catalog is more than 7 days old, the session-start
@@ -389,6 +389,7 @@ Full rules: [`heuristics.md`](plugins/modelscout/skills/modelscout/references/he
 - [x] Savings report for Hermes Agent sessions (v0.3.4)
 - [x] Native Hermes plugin: hook, skill and `/modelscout` command (v0.3.7)
 - [x] Model catalog keeps itself fresh, no manual refresh (v0.3.9)
+- [x] Routing that learns: a model that keeps giving weak results for a tier is skipped for it (v0.3.9)
 - [ ] Savings report for Codex and Gemini session logs
 - [ ] Azure OpenAI / Bedrock / Vertex key detection
 - [ ] `modelscout` CLI wrapper (`npx modelscout` → prints inventory + advice)

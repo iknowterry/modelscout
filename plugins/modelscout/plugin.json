@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "modelscout",
-  "version": "0.3.8",
-  "description": "Knows which AI models you actually have (keys and subscriptions, live pricing), picks the right one for every task, routes it to a best-fit subagent, and proves what that saved. One open Agent Skills plugin for Claude Code, Codex, ChatGPT, Gemini CLI and Hermes.",
+  "version": "0.3.9",
+  "description": "Cuts token costs and makes subscription usage limits last longer. Knows which AI models you actually have (keys and subscriptions, live pricing), picks the right one for every task, routes it to a best-fit subagent, and proves what that saved. One open Agent Skills plugin for Claude Code, Codex, ChatGPT, Gemini CLI and Hermes.",
   "author": {
     "name": "iKnowTerry",
     "email": "pruthisith@gmail.com"
@@ -22,8 +22,8 @@
       "hooks": "./hooks/codex-hooks.json",
       "interface": {
         "displayName": "ModelScout",
-        "shortDescription": "Right model for every task, with proof",
-        "longDescription": "ModelScout knows which AI models you actually have (keys and subscriptions, live pricing), shows a short card for each task (tier, best-fit model, why), routes the work to a right-sized subagent, and measures what that saved from real logs. The same open Agent Skill runs in Codex, ChatGPT, Claude Code, Gemini CLI and Hermes.",
+        "shortDescription": "Save tokens and usage limits on every task",
+        "longDescription": "ModelScout cuts token costs and makes subscription usage limits last longer. It knows which AI models you actually have (keys and subscriptions, live pricing), shows a short card for each task (tier, best-fit model, why), routes the work to a right-sized subagent, and measures what that saved from real logs. The same open Agent Skill runs in Codex, ChatGPT, Claude Code, Gemini CLI and Hermes.",
         "developerName": "iKnowTerry",
         "category": "Productivity",
         "capabilities": [
