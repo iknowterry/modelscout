@@ -11,6 +11,7 @@ Must never block or break the user's prompt: every failure path exits 0.
 """
 import importlib.util
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -167,7 +168,8 @@ SETTING_WORDS = {"", "status", "show", "prefs", "settings", "on", "quiet", "quie
                  "reset", "savings", "saved", "report", "help",
                  "refresh", "update", "refresh catalog", "update catalog", "catalog",
                  "catalog on", "catalog off", "auto-refresh on", "auto-refresh off",
-                 "weak", "outcomes", "forget"}
+                 "weak", "outcomes", "forget",
+                 "grok setup", "grok on", "grok remove", "grok off"}
 
 
 def _norm(cmd):
@@ -200,8 +202,25 @@ def catalog_command(host=None):
 
 
 def handle_command(cmd, host=None):
+    out = _handle_command(cmd, host)
+    try:  # keep the Grok rules file in step with saved settings
+        if _norm(cmd) not in ("grok remove", "grok off"):
+            grok_refresh_if_present()
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def _handle_command(cmd, host=None):
     c = _norm(cmd)
     try:
+        if c in ("grok setup", "grok on"):
+            path = grok_write_rules()
+            return (f"ModelScout: Grok Build rules written to {str(path).replace(str(Path.home()), '~')}.\n"
+                    "Start a new Grok session to load them. Remove with `modelscout: grok remove`.")
+        if c in ("grok remove", "grok off"):
+            return ("ModelScout: Grok Build rules removed." if grok_remove_rules()
+                    else "ModelScout: no Grok Build rules file to remove.")
         if c in ("", "status", "show", "prefs", "settings"):
             off = "" if host == "hermes" or prefs.catalog_auto_refresh() else " · auto-refresh off"
             return ("ModelScout settings\n" + prefs.describe() + "\n" + catalog.status() + off
@@ -239,7 +258,7 @@ def handle_command(cmd, host=None):
             m = TIER_CMD[0].match(c) or TIER_CMD[1].match(c)
             if not m:
                 return ("ModelScout commands: modelscout: auto | ask | inform | off | status | savings | weak | forget | refresh | reset | "
-                        "quiet | loud | T1 switch|stay|ask|clear (same for T2–T4)")
+                        "quiet | loud | T1 switch|stay|ask|clear (same for T2–T4) | grok setup | grok remove")
             a, b = m.groups()
             tier, action = (a, b) if a.startswith("t") else (b, a)
             prefs.set_default(tier, action)
@@ -306,7 +325,8 @@ def load_json(path):
 
 
 PROVIDER_KEYS = {"openai": ("openai", "openai"), "anthropic": ("anthropic", "anthropic"),
-                 "gemini": ("gemini", "google")}
+                 "gemini": ("gemini", "google"), "xai": ("xai", "xai")}
+HOST_PROVIDER = {"codex": "openai", "gemini": "gemini", "grok": "xai"}
 
 
 def model_provider(model_id):
@@ -318,6 +338,8 @@ def model_provider(model_id):
         return "anthropic"
     if m.startswith("gemini"):
         return "gemini"
+    if m.startswith("grok"):
+        return "xai"
     return None
 
 
@@ -350,7 +372,7 @@ def _months(date):
 def provider_picks(host, host_model=None):
     """Best-fit model per tier for non-Claude hosts, from inventory or catalog price bands.
     Hermes can run any provider, so it uses the current model's provider."""
-    key = {"codex": "openai", "gemini": "gemini"}.get(host) or model_provider(host_model)
+    key = HOST_PROVIDER.get(host) or model_provider(host_model)
     prov = PROVIDER_KEYS.get(key)
     if not prov:
         return None
@@ -366,6 +388,8 @@ def provider_picks(host, host_model=None):
         cat = catalog.load().get(prov[1], {}).get("models", {})
         models = usable([(k, (v.get("cost") or {}).get("output"), v.get("release_date") or "")
                          for k, v in cat.items() if v.get("tool_call")])
+    if host == "grok":  # only plain versions Grok's picker offers, plus the user's custom models
+        models = [m for m in models if GROK_PLAIN.match(m[0])] + grok_custom_models()
     if not models:
         return None
     newest = max(r for _, _, r in models)
@@ -429,6 +453,150 @@ def learned_bumps(picks, av=None, exact=False, keep=None):
         return picks, []
 
 
+# --- Grok Build (beta) -------------------------------------------------------
+# Grok Build discards additionalContext from an allowing UserPromptSubmit hook,
+# so the per-prompt block cannot reach the model there. Instead, on request
+# (`modelscout: grok setup`), ModelScout writes one rules file that Grok loads
+# into every session: $GROK_HOME/rules/modelscout.md (default ~/.grok). The
+# SessionStart hook and saved settings refresh it only if it already exists.
+GROK_PLAIN = re.compile(r"^grok-\d+(\.\d+)?$")
+GROK_MARK = "<!-- written by ModelScout: modelscout: grok setup -->"
+
+
+def grok_home():
+    return Path(os.environ.get("GROK_HOME") or Path.home() / ".grok")
+
+
+def grok_rules_path():
+    return grok_home() / "rules" / "modelscout.md"
+
+
+def grok_config_models():
+    """{picker name: model id} for the user's [model.<name>] entries in
+    $GROK_HOME/config.toml. Empty without tomllib (Python < 3.11) or a config."""
+    try:
+        import tomllib
+        cfg = tomllib.loads((grok_home() / "config.toml").read_text())
+    except Exception:  # noqa: BLE001
+        return {}
+    out = {}
+    for name, v in (cfg.get("model") or {}).items():
+        if isinstance(v, dict) and safe_id(name):
+            mid = v.get("model") if isinstance(v.get("model"), str) else name
+            out[name] = mid
+    return out
+
+
+def grok_custom_models():
+    """The user's custom Grok models with catalog prices: (picker name, output
+    $/1M, release date). A custom model with no catalog price is left out."""
+    cat = catalog.load()
+    out = []
+    for name, mid in grok_config_models().items():
+        key = mid.lower().rsplit("/", 1)[-1].split(".", 1)[-1] if "/" in mid or mid.startswith("xai.") else mid.lower()
+        for prov in cat.values():
+            v = (prov.get("models") or {}).get(key) if isinstance(prov, dict) else None
+            if isinstance(v, dict) and isinstance((v.get("cost") or {}).get("output"), (int, float)):
+                out.append((name, v["cost"]["output"], v.get("release_date") or ""))
+                break
+    return usable(out)
+
+
+RULES_GROK = {
+    "switch": """\
+switch → delegate now: call spawn_subagent with `model` set to the best-fit
+  model exactly as listed above, a `description` starting "ModelScout: <Tier> · "
+  (e.g. "ModelScout: T1 · rename user_id") and a self-contained `prompt` (goal,
+  exact files/paths, facts it needs from this conversation, constraints, what
+  done looks like). Verify its result before reporting; if it is weak, redo it
+  yourself and say so. Do it here instead (card line 3: "Doing it here —
+  <reason>") when spawn_subagent offers no `model` argument, the best fit is
+  your current model, the model is not in your picker, or for a 1–2 tool-call
+  job, destructive/outward-facing steps, or work that needs the user's answers.""",
+    "ask": RULES_OTHER["ask"],
+    "stay": RULES_OTHER["stay"],
+}
+
+
+def grok_rules_text(eff=None):
+    """The rules file body: the ModelScout block without per-prompt guesses."""
+    eff = eff or prefs.effective()
+    head = (f"{GROK_MARK}\n# ModelScout\n\nRemove with `modelscout: grok remove` (or delete this file).\n\n")
+    if eff["mode"] == "off":
+        return head + "ModelScout is off (`modelscout: auto` turns it back on). Ignore this file.\n"
+    actions = {t: prefs.action_for(t, eff) for t in prefs.TIERS}
+    used = sorted(set(actions.values()), key=["switch", "ask", "stay"].index)
+    rules = "\n".join(RULES_GROK[a].replace("{prefs}", str(PREFS)) for a in used)
+    picks = provider_picks("grok") or {}
+    names = set(picks.values()) | set(grok_config_models())
+    picks, learned = learned_bumps(picks, exact=True, keep=lambda m: m in names or model_provider(m) == "xai")
+    fit = (", ".join(f"{t}→{m}" for t, m in sorted(picks.items())) + " (price-band picks from your Grok "
+           "models and the models.dev catalog)") if picks else \
+        "the cheapest model in your /model picker whose price band fits the tier"
+    learned_line = f"\n   Learned: {'; '.join(learned)}." if learned else ""
+    receipt = ("If the model FITS, show one quote line: > `🔭 ModelScout` **<Tier> <tier name>** · `<Model>` fits — doing it here"
+               if eff["receipts"] == "always" else "If the model FITS, show nothing — just do the work.")
+    action_line = " ".join(f"{t}={a}" for t, a in actions.items())
+    return head + f"""<modelscout host="grok" mode="{eff['mode']}" on-mismatch="{action_line}">
+ModelScout is ACTIVE. Apply it to each user prompt that starts a NEW substantial
+task — skip follow-ups ("yes", "continue"), quick questions and chit-chat.
+1. Tier the task: T1 mechanical, T2 standard, T3 hard reasoning, T4 frontier.
+   Best fit: {fit}.{learned_line}
+   If every tier maps to your current model, just do the work: there is nothing to save.
+2. Show this card FIRST, in the user's language, as a Markdown quote block, max 3 lines:
+   > `🔭 ModelScout` **<Tier> <tier name>** · <the task in 5–8 words>
+   > Best fit: `<Model>` — <why, one clause> · <cost vs current>
+   > → ⚡ <what happens next>
+   {receipt}
+3. On a mismatch, act per on-mismatch for the tier you chose:
+{rules}
+Settings: the user types "modelscout: auto|ask|inform|off|status|savings|refresh|T1 stay".
+Don't load the modelscout skill, read config files or run scripts just to show the card.
+</modelscout>
+"""
+
+
+def _write_atomic(path, text):
+    import tempfile
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".modelscout.")
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
+    os.chmod(tmp, 0o644)
+    os.replace(tmp, path)
+
+
+def grok_write_rules():
+    path = grok_rules_path()
+    _write_atomic(path, grok_rules_text())
+    return path
+
+
+def _ours(path):
+    try:
+        return path.read_text().startswith(GROK_MARK)
+    except OSError:
+        return False
+
+
+def grok_remove_rules():
+    """Delete the rules file, only if ModelScout wrote it."""
+    path = grok_rules_path()
+    if not _ours(path):
+        return False
+    path.unlink()
+    return True
+
+
+def grok_refresh_if_present():
+    """Rewrite the rules file if (and only if) ModelScout's file is there."""
+    path = grok_rules_path()
+    if _ours(path):
+        _write_atomic(path, grok_rules_text())
+        return True
+    return False
+
+
 def build_block(prompt, transcript_path, eff, host, host_model=None):
     tier_hint, basis = guess_tier(prompt)
     model_id = safe_id(host_model)
@@ -452,7 +620,7 @@ def build_block(prompt, transcript_path, eff, host, host_model=None):
                "you may add \"tip: pick <Model> in the model menu\".")
     else:
         picks = provider_picks(host, host_model)
-        own_prov = {"codex": "openai", "gemini": "gemini"}.get(host)  # Hermes can route to any provider
+        own_prov = HOST_PROVIDER.get(host) if host != "grok" else None  # Hermes and Grok can route to any provider
         adj, learned = learned_bumps(picks or {}, exact=True,
                                      keep=(lambda m: model_provider(m) == own_prov) if own_prov else None)
         picks = adj if picks else None
@@ -495,6 +663,8 @@ Settings: {settings} "modelscout: auto|ask|inform|off|savings|refresh|T1 stay".{
 
 
 def detect_host(data, argv):
+    if os.environ.get("GROK_SESSION_ID"):  # set on every Grok Build hook, nowhere else
+        return "grok"
     for a in argv:
         if a.startswith("--host="):
             return a.split("=", 1)[1]
@@ -540,6 +710,8 @@ def main():
             print(json.dumps({"decision": "block", "reason": result}, ensure_ascii=False))
         return
 
+    if host == "grok":  # Grok drops prompt-hook context; the rules file carries the block
+        return
     eff = prefs.effective()
     if eff["mode"] == "off" or is_trivial(prompt):
         return

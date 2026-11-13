@@ -34,7 +34,7 @@ Then it acts on the answer: it hands the task to a subagent on that model and
 checks the result.
 
 **Works in:** Claude Code · Codex · the ChatGPT desktop app · Gemini CLI ·
-Hermes Agent · claude.ai. It's one package, installed with each host's own plugin command.
+Hermes Agent · claude.ai · Grok Build *(beta)*. It's one package, installed with each host's own plugin command.
 
 ## Why it's different
 
@@ -291,22 +291,51 @@ gemini skills install https://github.com/iknowterry/modelscout.git --path plugin
 That installs the skill. The hook script also understands Gemini's
 `BeforeAgent` event if you add it to `~/.gemini/settings.json`.
 
+### Grok Build (xAI) *(beta: built from xAI's docs, not yet tested live)*
+
+Grok Build reads Claude-format plugins, so the same package installs:
+
+```bash
+grok plugin marketplace add iknowterry/modelscout
+grok plugin install modelscout --trust
+```
+
+Then, in a Grok session, type `modelscout: grok setup` and start a new session.
+
+Why the extra step: Grok Build discards the context a prompt hook adds, so the
+per-task block can't arrive the way it does in Claude Code. `grok setup` writes
+the same instructions once to `~/.grok/rules/modelscout.md` (or
+`$GROK_HOME/rules/`), which Grok loads into every session. ModelScout then keeps
+that file current at session start and whenever you change a setting, and only
+touches it if it wrote it. `modelscout: grok remove` deletes it.
+
+What to expect:
+- Routing uses `spawn_subagent`'s `model` argument. If you've turned on Grok's
+  *subagent model inheritance*, that argument is hidden and the work stays on
+  your current model.
+- xAI's own lineup is close in price (grok-4.5 to 4.7 cost the same), so stock
+  Grok saves little beyond T1. The bigger savings come from the custom models
+  you add under `[model.<name>]` in `~/.grok/config.toml` (Claude, GPT, Gemini…).
+  ModelScout prices them from the catalog and routes to them by picker name.
+- `modelscout:` commands (status, savings, auto, ask, T1 stay, …) work. Outcome
+  tracking and learning don't record Grok subagents yet.
+
 ### Hermes Agent (Nous Research)
 
-ModelScout is a native Hermes plugin (since v0.3.7). It registers:
+ModelScout is a native Hermes plugin (since v0.3.7). It's listed in the
+[Hermes plugin marketplace](https://hermes-agent.nousresearch.com/marketplace/modelscout).
+It registers:
 - a `pre_llm_call` hook that shows the card on each new task;
 - the `modelscout:modelscout` skill;
 - a `/modelscout` command (`status`, `savings`, `auto`, `ask`, `inform`, `off`, `T1 stay`, …).
 
 It passes `hermes plugins validate` and `hermes plugins doctor` on Hermes v0.23.0.
 
-Once it's listed in the Hermes plugin catalog:
-
 ```bash
 hermes plugins install modelscout --enable
 ```
 
-Until then, install from a clone:
+Or install from a clone:
 
 ```bash
 git clone https://github.com/iknowterry/modelscout ~/modelscout && ln -s ~/modelscout/plugins/modelscout ~/.hermes/plugins/modelscout && hermes plugins enable modelscout
@@ -410,20 +439,27 @@ Full rules: [`heuristics.md`](plugins/modelscout/skills/modelscout/references/he
 
 ## Roadmap
 
-- [x] **Savings report:** `modelscout: savings` (v0.3.0)
-- [x] Savings report for Hermes Agent sessions (v0.3.4)
-- [x] Native Hermes plugin: hook, skill and `/modelscout` command (v0.3.7)
+Shipped:
+
+- [x] Savings report from real session logs: Claude Code (v0.3.0), Hermes Agent (v0.3.4)
+- [x] Native Hermes plugin with hook, skill and `/modelscout` command (v0.3.7). Listed in the Hermes marketplace (v0.3.10)
 - [x] Model catalog keeps itself fresh, no manual refresh (v0.3.9)
-- [x] Outcome tracking: how each routed subagent ended, with no task text stored (v0.3.9)
-- [x] Routing that learns: a model that keeps giving weak results for a tier is skipped for it (v0.3.9)
+- [x] Outcome tracking and routing that learns: a model that keeps giving weak results for a tier is skipped for it (v0.3.9)
 - [x] Context-tiered prices in the savings report (v0.3.9)
-- [x] The main model reports weak results on its own, so learning needs no typing (v0.3.10)
-- [ ] Quick picks on Codex and Gemini limited to your inventory and declared subscriptions
-- [ ] Savings net of the main model's briefing and checking, so the figure is not an upper bound
-- [ ] Outcome tracking for Codex and Gemini sessions
-- [ ] Savings report for Codex and Gemini session logs
-- [ ] Azure OpenAI / Bedrock / Vertex key detection
-- [ ] `modelscout` CLI wrapper (`npx modelscout` → prints inventory + advice)
+- [x] The main model reports weak results itself, so learning needs no typing (v0.3.10)
+
+Next:
+
+- [x] Grok Build support (beta), through a rules file and `spawn_subagent`'s `model` argument *(unreleased)*
+- [x] Azure OpenAI / AWS Bedrock / Google Vertex AI detected from credentials, with no cloud API calls *(unreleased)*
+- [ ] Grok Build: live test, plus outcome tracking for `spawn_subagent`
+- [ ] Savings net of the main model's briefing and checking, so the figure is no longer an upper bound
+- [ ] Codex and Gemini: savings report from their session logs, and outcome tracking
+- [ ] Subscription-aware picks: limit Codex/Gemini/Grok picks to the models a declared subscription (e.g. ChatGPT Plus) actually includes
+
+Later (these need hosting or publishing):
+
+- [ ] `npx modelscout` CLI that prints your inventory and advice
 - [ ] Optional Action endpoint for the Custom GPT adapter
 
 ## License

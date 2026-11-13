@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ModelScout — discover-models.sh
 # Builds ~/.claude/model-inventory.json: the AI models this machine actually has
-# API access to (Anthropic / OpenAI / Gemini / OpenRouter), enriched with pricing,
+# API access to (Anthropic / OpenAI / Gemini / OpenRouter, plus Azure OpenAI / AWS
+# Bedrock / Google Vertex AI by credential presence only), enriched with pricing,
 # limits, and capabilities from the models.dev open catalog.
 #
 # Usage: bash discover-models.sh [--refresh-catalog]
@@ -82,6 +83,9 @@ CATALOG_PROVIDERS = {
     "anthropic": ["anthropic"],
     "openai": ["openai"],
     "gemini": ["google", "google-vertex"],
+    "azure": ["azure"],
+    "bedrock": ["amazon-bedrock"],
+    "vertex": ["google-vertex"],
 }
 
 def enrich(provider, model_id):
@@ -179,6 +183,36 @@ if oro is not None:
     models.sort(key=lambda x: x["id"])
     inventory["providers"]["openrouter"] = {"key_present": True, "models": models}
 
+# Azure OpenAI / AWS Bedrock / Google Vertex AI — detected by environment variable
+# presence only. No cloud credentials are used and no network call is made, so the
+# model list is the provider's models.dev catalog, not the user's actual deployments.
+# Only the provider name is recorded; values (keys, endpoints, projects, profiles) never are.
+def _env(name):
+    return bool(os.environ.get(name, "").strip())
+
+def _flag(name):
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
+
+CLOUD_SIGNALS = {
+    "azure": (_env("AZURE_OPENAI_API_KEY") or _env("AZURE_API_KEY"))
+             and (_env("AZURE_OPENAI_ENDPOINT") or _env("AZURE_RESOURCE_NAME")),
+    "bedrock": _env("AWS_BEARER_TOKEN_BEDROCK")
+               or (_env("AWS_ACCESS_KEY_ID") and _env("AWS_SECRET_ACCESS_KEY"))
+               or _env("AWS_PROFILE") or _flag("CLAUDE_CODE_USE_BEDROCK"),
+    "vertex": (_env("GOOGLE_VERTEX_PROJECT") or _env("GOOGLE_CLOUD_PROJECT") or _env("ANTHROPIC_VERTEX_PROJECT_ID"))
+              and (_env("GOOGLE_APPLICATION_CREDENTIALS") or _flag("CLAUDE_CODE_USE_VERTEX")),
+}
+for cname, detected in CLOUD_SIGNALS.items():
+    if not detected:
+        continue
+    cmodels = (catalog.get(CATALOG_PROVIDERS[cname][0]) or {}).get("models") or {}
+    models = [{"id": mid, **enrich(cname, mid)} for mid in sorted(cmodels)]
+    inventory["providers"][cname] = {
+        "credentials_detected": True,
+        "source": "catalog (credentials detected, deployments not listed)",
+        "models": models,
+    }
+
 # Declared subscriptions (no-API-key users): merge from the profile file.
 profile = load(profile_path) or {}
 declared = profile.get("declared_subscriptions") or []
@@ -192,7 +226,9 @@ with open(inventory_path, "w") as f:
 print(f"Inventory written to {inventory_path}")
 if not inventory["providers"]:
     print("No provider API keys found in the environment "
-          "(checked ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY/GOOGLE_API_KEY, OPENROUTER_API_KEY).")
+          "(checked ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY/GOOGLE_API_KEY, OPENROUTER_API_KEY, "
+          "AZURE_OPENAI_API_KEY+AZURE_OPENAI_ENDPOINT, AWS_BEARER_TOKEN_BEDROCK/AWS_ACCESS_KEY_ID+AWS_SECRET_ACCESS_KEY/AWS_PROFILE/CLAUDE_CODE_USE_BEDROCK, "
+          "GOOGLE_CLOUD_PROJECT+GOOGLE_APPLICATION_CREDENTIALS/CLAUDE_CODE_USE_VERTEX).")
     print("That's fine for subscription users — declare what you have in "
           f"{profile_path}")
     print('  e.g. {"declared_subscriptions": ["claude-max", "chatgpt-plus", "gemini-advanced"]}')
@@ -201,5 +237,6 @@ if declared:
     print(f"  declared subscriptions: {', '.join(declared)}")
 for name, p in inventory["providers"].items():
     enriched = sum(1 for m in p["models"] if m.get("enriched"))
-    print(f"  {name}: {len(p['models'])} models ({enriched} enriched with pricing/capabilities)")
+    suffix = " [catalog list: credentials detected, deployments not listed]" if p.get("credentials_detected") else ""
+    print(f"  {name}: {len(p['models'])} models ({enriched} enriched with pricing/capabilities){suffix}")
 PY

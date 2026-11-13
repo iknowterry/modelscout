@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""ModelScout — SessionStart hook (Claude Code, Codex, Gemini CLI).
+"""ModelScout — SessionStart hook (Claude Code, Codex, Gemini CLI, Grok Build).
 Announces that ModelScout is active, and keeps the model catalog fresh: when it
 is more than 7 days old, a detached background process fetches models.dev
 (one public GET, no keys). Always exits 0; prints JSON only."""
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -29,6 +30,16 @@ def prefs_off_refresh():
     return not prefs.catalog_auto_refresh()
 
 
+def grok_refresh():
+    """Keep ModelScout's Grok rules file current (picks, learning, settings),
+    only if the user created it with `modelscout: grok setup`."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("modelscout_proactive", Path(__file__).with_name("proactive_check.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.grok_refresh_if_present()
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -39,6 +50,12 @@ def main():
         refresh_catalog_in_background()
     except Exception:
         pass
+    if os.environ.get("GROK_SESSION_ID"):  # Grok Build ignores SessionStart output
+        try:
+            grok_refresh()
+        except Exception:
+            pass
+        return
     mode = prefs.effective()["mode"]
     if mode == "off":
         return
