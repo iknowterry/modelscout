@@ -27,7 +27,8 @@ Each task in `tasks/<id>/` has `task.json` (the prompt), an optional `setup/` (a
 - Savings are computed only on tasks with valid runs in both arms.
 - Runs are shuffled so both arms meet the same time of day and the same rate limits.
 - `MODELSCOUT_STATE_DIR` gives each run its own ModelScout settings (mode `auto`) and outcome log, so your real settings and learning are untouched. Your `modelscout: savings` report skips benchmark sessions.
-- Edits are auto-accepted. Bash may only run the tests (`python3 -m unittest`, `pytest`) and `ls`/`wc`/`diff`. Web tools, `curl`, `wget`, `git`, `ssh`, `rm` and `sudo` are denied. This is an allowlist, not a sandbox: for stronger isolation, run the benchmark in a container.
+- Edits are auto-accepted inside the temp copy only. Bash may run the tests (`python3 -m unittest`, `pytest`) and `ls`/`wc`/`diff`. Web tools, `curl`, `wget`, `git`, `ssh`, `rm` and `sudo` are denied. The hidden and visible checks run with a scrubbed environment: no API keys, no cloud credentials, no real HOME.
+- **Know the risk:** the agent writes code and the tests run it, so this is arbitrary code execution as your user. Permissions limit it, but it is not a sandbox. The prompts are benign and written in this repo. For real isolation, run the benchmark in a container or a throwaway user account.
 
 ## Run it
 

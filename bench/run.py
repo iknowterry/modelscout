@@ -22,10 +22,12 @@ Isolation
     run's own folder, so your real settings and learning are untouched.
   - Work happens in a temp copy whose path contains "modelscout-bench"; your
     `modelscout: savings` report skips those sessions.
-  - Permissions: edits are auto-accepted. Bash may only run the tests
-    (`python3 -m unittest`, `pytest`) and ls/wc/diff; anything else is refused in
-    headless mode. Web tools, curl/wget, git, ssh, rm and sudo are denied. This is
-    an allowlist, not a sandbox: for stronger isolation run it in a container.
+  - Permissions: edits are auto-accepted inside the temp copy only. Bash may run
+    the tests (`python3 -m unittest`, `pytest`) and ls/wc/diff; web tools,
+    curl/wget, git, ssh, rm and sudo are denied. The checks run with a scrubbed
+    environment (no keys, no HOME). Still: the agent writes code and the tests run
+    it, so this is arbitrary code execution as your user, limited by permissions,
+    not a sandbox. Run it in a container or a throwaway account for isolation.
 
 This spends real tokens (your subscription quota or API credit). Without --go
 it only prints the plan.
@@ -55,9 +57,12 @@ TASKS = BENCH / "tasks"
 FIXTURE = BENCH / "fixture"
 PROJECTS = Path.home() / ".claude" / "projects"
 ARMS = ("baseline", "routed")
-# Bash is limited to running the tests and to read-only listing/diffing: no
-# generic `python3 *` (arbitrary code), no `find` (-exec), no network tools.
-ALLOWED = ["Read", "Edit", "Write", "Glob", "Grep", "Agent", "Task", "TodoWrite",
+# Edit/Write are NOT allowlisted: --permission-mode acceptEdits auto-accepts edits
+# inside the working directory only, and headless mode refuses anything else.
+# Bash is limited to the test runners and ls/wc/diff. Note that running tests
+# the agent can write is arbitrary code execution as your user: this is a
+# permission allowlist, not a sandbox. For real isolation use a container.
+ALLOWED = ["Read", "Glob", "Grep", "Agent", "Task", "TodoWrite",
            "Bash(python3 -m unittest*)", "Bash(python3 -m pytest*)", "Bash(pytest*)",
            "Bash(ls*)", "Bash(wc*)", "Bash(diff*)"]
 DENIED = ["WebFetch", "WebSearch", "Bash(curl*)", "Bash(wget*)", "Bash(git*)", "Bash(ssh*)",
@@ -111,10 +116,14 @@ def run_check(proj, task):
         shutil.rmtree(chk)  # the agent must not pre-seed the hidden tests
     shutil.copytree(task["dir"] / "check", chk)
     res = {}
+    # Minimal environment for code the agent wrote: no API keys, cloud credentials
+    # or your HOME; -I ignores PYTHON* variables and user site-packages.
+    env = {"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(proj.parent), "LANG": "C.UTF-8",
+           "PYTHONDONTWRITEBYTECODE": "1"}
     for name, args in (("hidden", ["-s", "_bench_check", "-t", "."]), ("visible", ["-s", "tests", "-t", "."])):
         try:
-            p = subprocess.run([sys.executable, "-m", "unittest", "discover", *args], cwd=proj,
-                               capture_output=True, text=True, timeout=300)
+            p = subprocess.run([sys.executable, "-I", "-m", "unittest", "discover", *args], cwd=proj,
+                               env=env, capture_output=True, text=True, timeout=300)
             res[name] = {"ok": p.returncode == 0, "tail": (p.stderr or p.stdout)[-600:]}
         except subprocess.TimeoutExpired:
             res[name] = {"ok": False, "tail": "timeout"}
