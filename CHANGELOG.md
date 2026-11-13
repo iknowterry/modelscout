@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.3.11] - 2026-11-13
 
 ### Added
 - Grok Build host (beta). The package installs as a Grok plugin, and `modelscout: grok setup` writes `~/.grok/rules/modelscout.md`, because Grok discards prompt-hook context. That file is refreshed at session start and on settings changes, and only if ModelScout wrote it. Picks use Grok's plain xAI models plus custom `[model.*]` entries priced from the catalog. Routing goes through `spawn_subagent`'s `model` argument. Hooks recognise Grok via `GROK_SESSION_ID`, and the prompt hook stays silent there except for `modelscout:` commands

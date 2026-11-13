@@ -447,11 +447,11 @@ Shipped:
 - [x] Outcome tracking and routing that learns: a model that keeps giving weak results for a tier is skipped for it (v0.3.9)
 - [x] Context-tiered prices in the savings report (v0.3.9)
 - [x] The main model reports weak results itself, so learning needs no typing (v0.3.10)
+- [x] Grok Build support (beta), through a rules file and `spawn_subagent`'s `model` argument (v0.3.11)
+- [x] Azure OpenAI / AWS Bedrock / Google Vertex AI detected from credentials, with no cloud API calls (v0.3.11)
 
 Next:
 
-- [x] Grok Build support (beta), through a rules file and `spawn_subagent`'s `model` argument *(unreleased)*
-- [x] Azure OpenAI / AWS Bedrock / Google Vertex AI detected from credentials, with no cloud API calls *(unreleased)*
 - [ ] Grok Build: live test, plus outcome tracking for `spawn_subagent`
 - [ ] Savings net of the main model's briefing and checking, so the figure is no longer an upper bound
 - [ ] Codex and Gemini: savings report from their session logs, and outcome tracking
