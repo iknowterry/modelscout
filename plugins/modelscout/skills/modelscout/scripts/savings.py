@@ -180,6 +180,8 @@ def scan(days, include_all):
     cutoff = time.time() - days * 86400
     routes = []
     for tr in PROJECTS.glob("*/*.jsonl"):
+        if "modelscout-bench" in tr.parent.name:  # benchmark runs are measured by bench/, not counted here
+            continue
         try:
             if tr.stat().st_mtime < cutoff:
                 continue

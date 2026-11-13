@@ -1,0 +1,7 @@
+{
+  "id": "t3-dedupe-price-parsing",
+  "tier": "T3",
+  "title": "Remove duplicated price parsing",
+  "prompt": "shoplib/csvio.py and shoplib/cli.py each have their own copy of the code that turns a price string into integer cents. Consolidate them into one public function `parse_cents(text) -> int` in shoplib/money.py, and have both csvio and cli call it; neither should keep its own parsing logic or import `decimal` any more. Behaviour must stay the same: same results, same `ValidationError` messages (`invalid price: 'abc'`), same CLI exit code and stderr text for a bad price, same `row N:` prefix when a CSV price is bad. The csvio version is the more complete one (it accepts a leading `$` and thousands commas, e.g. `$1,234.50`); the CLI should accept the same inputs once they share the code.",
+  "timeout_min": 25
+}

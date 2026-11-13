@@ -1,0 +1,7 @@
+{
+  "id": "t3-discount-stacking",
+  "tier": "T3",
+  "title": "Fix wrong totals when stacking discounts",
+  "prompt": "Support is getting complaints that customers are charged the wrong amount when discounts are stacked. Two examples: (1) a $100.00 cart with a 10% coupon and then a 20% promo is charged $70.00, but should be $72.00; (2) a $10.01 cart with 50% off is charged $5.01, but should be $5.00. Find the root cause in the pricing code and fix it. The intended rules: discounts are applied in the order given, each one to the running total (not the original subtotal); a percentage discount is rounded to the nearest cent with exact halves rounding up; a fixed discount is in cents; the total never goes below zero.",
+  "timeout_min": 25
+}

@@ -1,0 +1,7 @@
+{
+  "id": "t2-report-tests",
+  "tier": "T2",
+  "title": "Write unit tests for the report module",
+  "prompt": "shoplib/report.py has no tests. Write thorough unittest tests for it in tests/test_report.py, covering `summarize`, `format_summary` and `stock_report`: cancelled orders, discounts and tax in revenue, top-product ranking and ties, `top_n`, empty input, low-stock flagging at the threshold boundary, and the exact output format. The tests must pass against the current code and should catch regressions in it.",
+  "timeout_min": 20
+}

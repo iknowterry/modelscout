@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `bench/`: a reproducible benchmark. It runs 12 tasks (T1–T3) with ModelScout off and on, on the same main model in fresh project copies. Cost is measured net from the main session and subagent transcripts, and quality from hidden tests. A run counts only if its isolation checks pass. Results are kept as one JSON file per run
+- `MODELSCOUT_STATE_DIR` moves ModelScout's settings and outcome log (used by the benchmark). `modelscout: savings` skips benchmark sessions
+
 ## [0.3.11] - 2026-11-13
 
 ### Added

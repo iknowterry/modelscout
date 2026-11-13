@@ -1,0 +1,7 @@
+{
+  "id": "t1-type-hints",
+  "tier": "T1",
+  "title": "Add type hints to csvio",
+  "prompt": "shoplib/csvio.py is the only module without type hints. Add them: annotate every parameter and every return type of every function in that file, using specific types (TextIO, Iterable, list[Product], Inventory and so on) rather than Any. Don't change behaviour.",
+  "timeout_min": 10
+}

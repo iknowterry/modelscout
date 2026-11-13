@@ -1,0 +1,8 @@
+{
+  "id": "t2-cancel-crash",
+  "tier": "T2",
+  "title": "Fix crash when cancelling an order",
+  "prompt": "Cancelling an order crashes in production. Traceback:\n\nTraceback (most recent call last):\n  File \"app.py\", line 41, in cancel_handler\n    svc.cancel(order_id)\n  File \"shoplib/orders.py\", line 64, in cancel\n    self.inventory.add_stock(line.sku, line.quantity)\nAttributeError: 'OrderLine' object has no attribute 'quantity'\n\nPlease fix it. Cancelling an order should put its units back in stock and mark the order as cancelled; cancelling the same order a second time should still be an error.",
+  "timeout_min": 10,
+  "visible_tests_may_fail_before": true
+}

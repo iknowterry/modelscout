@@ -36,7 +36,7 @@ import sys
 import time
 from pathlib import Path
 
-OUTCOMES = Path.home() / ".claude" / "modelscout-outcomes.jsonl"
+OUTCOMES = Path(os.environ.get("MODELSCOUT_STATE_DIR") or Path.home() / ".claude") / "modelscout-outcomes.jsonl"
 TAG = re.compile(r"^\s*(?:⚡\s*)?modelscout\s*:\s*(t[1-4])\b", re.I)
 MARK = re.compile(r"^\s*(?:⚡\s*)?modelscout\b", re.I)
 FAIL_STATUSES = {"failed", "error", "interrupted", "timeout", "timed_out", "cancelled"}

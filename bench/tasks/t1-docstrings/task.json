@@ -1,0 +1,7 @@
+{
+  "id": "t1-docstrings",
+  "tier": "T1",
+  "title": "Fill in missing docstrings in orders.py",
+  "prompt": "Some of shoplib/orders.py has no docstrings. Make sure the module itself and every public class, function and method in it has a short, accurate docstring in the same style as the rest of the package. Don't change any behaviour.",
+  "timeout_min": 10
+}

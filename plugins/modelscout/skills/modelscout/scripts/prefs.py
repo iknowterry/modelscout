@@ -17,7 +17,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-PROFILE = Path.home() / ".claude" / "modelscout-profile.json"
+# MODELSCOUT_STATE_DIR moves settings and outcomes elsewhere (the benchmark uses it
+# so its runs never touch your real settings or learning).
+STATE_DIR = Path(os.environ.get("MODELSCOUT_STATE_DIR") or Path.home() / ".claude")
+PROFILE = STATE_DIR / "modelscout-profile.json"
 MODES = ("auto", "ask", "inform", "off")
 LEGACY_MODES = {"suggest": "ask"}
 ACTIONS = ("switch", "stay", "ask")

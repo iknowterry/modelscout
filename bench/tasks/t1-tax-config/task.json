@@ -1,0 +1,7 @@
+{
+  "id": "t1-tax-config",
+  "tier": "T1",
+  "title": "Move tax rate into a config module",
+  "prompt": "The 8% sales tax rate is hardcoded in shoplib/pricing.py. Create a new module shoplib/config.py that holds it as a constant `DEFAULT_TAX_RATE = 0.08`, and make `tax_cents` use it. Also let the SHOPLIB_TAX_RATE environment variable (for example `0.10`) override the rate; it should be read each time tax is computed, not once at import. An explicit `rate` argument to `tax_cents` must still win. The literal 0.08 should only appear in config.py afterwards.",
+  "timeout_min": 12
+}

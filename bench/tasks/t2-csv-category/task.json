@@ -1,0 +1,7 @@
+{
+  "id": "t2-csv-category",
+  "tier": "T2",
+  "title": "Support a category column in the catalog CSV",
+  "prompt": "Products have a `category`, but the catalog CSV import/export in shoplib/csvio.py drops it. Add support: `write_products` should write a `category` column as the last column (header `sku,name,price,quantity,category`), and `read_products` should read it into `Product.category`. Older files without a category column must still import, and an empty category cell means `general`. `save_catalog` and `load_catalog` should round-trip categories too.",
+  "timeout_min": 15
+}

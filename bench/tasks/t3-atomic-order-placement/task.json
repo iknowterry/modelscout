@@ -1,0 +1,7 @@
+{
+  "id": "t3-atomic-order-placement",
+  "tier": "T3",
+  "title": "Make order placement atomic and thread-safe",
+  "prompt": "Two problems with `OrderService.place` in shoplib/orders.py have been reported from production. (1) When an order has several lines and a later one can't be filled (or the same SKU appears on more than one line and the combined quantity exceeds stock), `OutOfStock` is raised but the stock for the earlier lines has already been deducted, and an order number has been used up. (2) The web app now calls `place` from a thread pool, and under load we see duplicate order ids and oversold stock. Make placing an order all-or-nothing and safe to call from several threads: either the whole order is placed (stock deducted, the next sequential id used) or nothing at all changes. Order ids must run 1, 2, 3... with no gaps or duplicates.",
+  "timeout_min": 30
+}

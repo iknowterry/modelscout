@@ -1,0 +1,7 @@
+{
+  "id": "t2-cli-low-stock",
+  "tier": "T2",
+  "title": "Add a low-stock CLI subcommand",
+  "prompt": "Add a `low-stock` subcommand to the command-line tool in shoplib/cli.py: `python -m shoplib --catalog catalog.csv low-stock [--threshold N]`. The threshold defaults to 5. It prints one line per product whose stock is strictly below the threshold, sorted by SKU, in the form `SKU: quantity` (for example `A1: 3`). If no product is below the threshold it prints `No low-stock products.` instead. Exit code is 0. Add a test for it to tests/test_cli.py.",
+  "timeout_min": 15
+}

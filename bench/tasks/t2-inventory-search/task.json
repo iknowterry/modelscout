@@ -1,0 +1,7 @@
+{
+  "id": "t2-inventory-search",
+  "tier": "T2",
+  "title": "Add Inventory.search with tests",
+  "prompt": "Add a method `search(query, category=None)` to `Inventory` in shoplib/inventory.py. It returns a list of products whose name or SKU contains `query` (case-insensitive substring match). If `category` is given, only products in that category (case-insensitive exact match) are returned. An empty query matches every product. Results are sorted by SKU. Add unit tests for it to tests/test_inventory.py.",
+  "timeout_min": 15
+}

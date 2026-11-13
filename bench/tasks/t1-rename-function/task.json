@@ -1,0 +1,7 @@
+{
+  "id": "t1-rename-function",
+  "tier": "T1",
+  "title": "Rename format_money to format_cents",
+  "prompt": "Rename the function `format_money` in shoplib/money.py to `format_cents`. Update every caller and every test so the whole codebase keeps working, and don't leave the old name behind anywhere (no alias, no leftover references).",
+  "timeout_min": 10
+}
